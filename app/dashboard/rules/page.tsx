@@ -3,6 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRuleStore } from "@/stores/useRuleStore";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { RulesDataTable } from "@/components/AllTables/rules-data-table";
+import { CreateRuleModal } from "@/components/Modals/CreateRuleModal";
+import { EditRuleModal } from "@/components/Modals/EditRuleModal";
+import { ViewRuleModal } from "@/components/Modals/ViewRuleModal";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,14 +16,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   Drawer,
   DrawerClose,
@@ -38,35 +34,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   IconPlus,
   IconEdit,
   IconTrash,
-  IconLoader2,
-  IconDotsVertical,
-  IconSearch,
-  IconFilter,
-  IconEye,
   IconCode,
+  IconLoader2,
 } from "@tabler/icons-react";
 
 interface Rule {
@@ -80,10 +54,10 @@ interface Rule {
     | "portion_adjustment"
     | "alert";
   definition: any;
-  nlTemplate: string;
+  nlTemplate?: string;
   version: number;
-  appliesTo: string[];
-  createdBy: string;
+  appliesTo?: string[];
+  createdBy?: string;
   deleted: boolean;
   createdAt: string;
   updatedAt: string;
@@ -396,491 +370,52 @@ export default function RulesPage() {
         </Card>
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-            <div className="relative flex-1">
-              <IconSearch className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search rules..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-            <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="w-full sm:w-48">
-                <IconFilter className="mr-2 h-4 w-4" />
-                <SelectValue placeholder="Filter by type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="constraint">Constraint</SelectItem>
-                <SelectItem value="scoring">Scoring</SelectItem>
-                <SelectItem value="substitution">Substitution</SelectItem>
-                <SelectItem value="portion_adjustment">
-                  Portion Adjustment
-                </SelectItem>
-                <SelectItem value="alert">Alert</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Rules Table */}
-      <Card>
-        <CardContent className="p-0">
-          {isLoading ? (
-            <div className="p-6 space-y-4">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="flex items-center gap-4">
-                  <Skeleton className="h-4 w-8" />
-                  <Skeleton className="h-4 flex-1" />
-                  <Skeleton className="h-6 w-20" />
-                  <Skeleton className="h-6 w-16" />
-                  <Skeleton className="h-8 w-8" />
-                </div>
-              ))}
-            </div>
-          ) : !filteredRules || filteredRules.length === 0 ? (
-            <div className="flex h-64 items-center justify-center text-muted-foreground">
-              <div className="text-center">
-                <p>No rules found</p>
-                {searchQuery && (
-                  <Button
-                    variant="link"
-                    onClick={() => setSearchQuery("")}
-                    className="mt-2"
-                  >
-                    Clear search
-                  </Button>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12">#</TableHead>
-                    <TableHead>Title</TableHead>
-                    <TableHead className="hidden md:table-cell">Slug</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead className="hidden sm:table-cell">
-                      Status
-                    </TableHead>
-                    <TableHead className="hidden lg:table-cell">
-                      Version
-                    </TableHead>
-                    <TableHead className="w-12"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredRules.map((rule, index) => (
-                    <TableRow key={rule._id}>
-                      <TableCell className="text-muted-foreground font-medium">
-                        {index + 1}
-                      </TableCell>
-                      <TableCell>
-                        <RuleDetailDrawer
-                          rule={rule as Rule}
-                          onEdit={handleEditClick}
-                          onDelete={handleDeleteRule}
-                        />
-                        {rule.nlTemplate && (
-                          <p className="text-xs text-muted-foreground mt-1 line-clamp-1 max-w-xs">
-                            {rule.nlTemplate}
-                          </p>
-                        )}
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell font-mono text-xs text-muted-foreground">
-                        {rule.slug}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="text-xs">
-                          {getTypeLabel(rule.type)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="hidden sm:table-cell">
-                        <Badge variant={rule.deleted ? "secondary" : "default"}>
-                          {rule.deleted ? "Archived" : "Active"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="hidden lg:table-cell text-muted-foreground">
-                        v{rule.version}
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                            >
-                              <IconDotsVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setViewingRule(rule as Rule);
-                                setIsViewDialogOpen(true);
-                              }}
-                            >
-                              <IconEye className="mr-2 h-4 w-4" />
-                              View
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => handleEditClick(rule as Rule)}
-                            >
-                              <IconEdit className="mr-2 h-4 w-4" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onClick={() => handleDeleteRule(rule.slug)}
-                              className="text-destructive focus:text-destructive"
-                            >
-                              <IconTrash className="mr-2 h-4 w-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <RulesDataTable
+        data={filteredRules}
+        isLoading={isLoading}
+        searchValue={searchQuery}
+        onSearchChange={setSearchQuery}
+        onSearch={() => {}}
+        filterValue={filterType}
+        onFilterChange={setFilterType}
+        onEdit={handleEditClick}
+        onDelete={handleDeleteRule}
+      />
 
-      {/* Create Rule Dialog */}
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Create New Rule</DialogTitle>
-            <DialogDescription>
-              Add a new rule template to the system
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleCreateRule} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="slug">Slug *</Label>
-                <Input
-                  id="slug"
-                  placeholder="max-gi-constraint"
-                  value={formData.slug}
-                  onChange={(e) =>
-                    setFormData({ ...formData, slug: e.target.value })
-                  }
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="type">Type *</Label>
-                <Select
-                  value={formData.type}
-                  onValueChange={(value: Rule["type"]) =>
-                    setFormData({ ...formData, type: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="constraint">Constraint</SelectItem>
-                    <SelectItem value="scoring">Scoring</SelectItem>
-                    <SelectItem value="substitution">Substitution</SelectItem>
-                    <SelectItem value="portion_adjustment">
-                      Portion Adjustment
-                    </SelectItem>
-                    <SelectItem value="alert">Alert</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+      {/* Create Rule Modal */}
+      <CreateRuleModal
+        open={isCreateDialogOpen}
+        onOpenChange={setIsCreateDialogOpen}
+        formData={formData}
+        setFormData={setFormData}
+        onSubmit={handleCreateRule}
+        isLoading={isLoading}
+      />
 
-            <div className="space-y-2">
-              <Label htmlFor="title">Title *</Label>
-              <Input
-                id="title"
-                placeholder="Maximum Glycemic Index"
-                value={formData.title}
-                onChange={(e) =>
-                  setFormData({ ...formData, title: e.target.value })
-                }
-                required
-              />
-            </div>
+      {/* Edit Rule Modal */}
+      <EditRuleModal
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        formData={formData}
+        setFormData={setFormData}
+        onSubmit={handleUpdateRule}
+        isLoading={isLoading}
+      />
 
-            <div className="space-y-2">
-              <Label htmlFor="nlTemplate">Description</Label>
-              <Textarea
-                id="nlTemplate"
-                placeholder="Foods with GI above {threshold} are not allowed"
-                value={formData.nlTemplate}
-                onChange={(e) =>
-                  setFormData({ ...formData, nlTemplate: e.target.value })
-                }
-                rows={3}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="appliesTo">Applies To (comma-separated)</Label>
-              <Input
-                id="appliesTo"
-                placeholder="diabetes, weight-loss"
-                value={formData.appliesTo}
-                onChange={(e) =>
-                  setFormData({ ...formData, appliesTo: e.target.value })
-                }
-              />
-            </div>
-
-            <DialogFooter className="gap-2 sm:gap-0">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsCreateDialogOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? (
-                  <>
-                    <IconLoader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating...
-                  </>
-                ) : (
-                  "Create Rule"
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Rule Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Edit Rule</DialogTitle>
-            <DialogDescription>
-              Update the rule template details
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleUpdateRule} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-slug">Slug</Label>
-                <Input
-                  id="edit-slug"
-                  value={formData.slug}
-                  disabled
-                  className="bg-muted"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-type">Type *</Label>
-                <Select
-                  value={formData.type}
-                  onValueChange={(value: Rule["type"]) =>
-                    setFormData({ ...formData, type: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="constraint">Constraint</SelectItem>
-                    <SelectItem value="scoring">Scoring</SelectItem>
-                    <SelectItem value="substitution">Substitution</SelectItem>
-                    <SelectItem value="portion_adjustment">
-                      Portion Adjustment
-                    </SelectItem>
-                    <SelectItem value="alert">Alert</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit-title">Title *</Label>
-              <Input
-                id="edit-title"
-                value={formData.title}
-                onChange={(e) =>
-                  setFormData({ ...formData, title: e.target.value })
-                }
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit-nlTemplate">Description</Label>
-              <Textarea
-                id="edit-nlTemplate"
-                value={formData.nlTemplate}
-                onChange={(e) =>
-                  setFormData({ ...formData, nlTemplate: e.target.value })
-                }
-                rows={3}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit-appliesTo">
-                Applies To (comma-separated)
-              </Label>
-              <Input
-                id="edit-appliesTo"
-                value={formData.appliesTo}
-                onChange={(e) =>
-                  setFormData({ ...formData, appliesTo: e.target.value })
-                }
-              />
-            </div>
-
-            <DialogFooter className="gap-2 sm:gap-0">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsEditDialogOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? (
-                  <>
-                    <IconLoader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Updating...
-                  </>
-                ) : (
-                  "Update Rule"
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* View Rule Dialog */}
-      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          {viewingRule && (
-            <>
-              <DialogHeader className="pb-4">
-                <div className="space-y-3">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 space-y-1">
-                      <DialogTitle className="text-2xl">
-                        {viewingRule.title}
-                      </DialogTitle>
-                      <DialogDescription className="font-mono text-xs">
-                        {viewingRule.slug}
-                      </DialogDescription>
-                    </div>
-                    <Badge
-                      variant={viewingRule.deleted ? "secondary" : "default"}
-                    >
-                      {viewingRule.deleted ? "Archived" : "Active"}
-                    </Badge>
-                  </div>
-                </div>
-              </DialogHeader>
-
-              <Separator />
-
-              <div className="space-y-6">
-                {/* Overview Section */}
-                <div>
-                  <h3 className="text-sm font-semibold mb-4">Overview</h3>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-1 bg-muted/40 p-3 rounded-lg">
-                      <Label className="text-xs text-muted-foreground">
-                        Type
-                      </Label>
-                      <p className="font-medium text-sm">
-                        {getTypeLabel(viewingRule.type)}
-                      </p>
-                    </div>
-                    <div className="space-y-1 bg-muted/40 p-3 rounded-lg">
-                      <Label className="text-xs text-muted-foreground">
-                        Version
-                      </Label>
-                      <p className="font-medium text-sm">
-                        v{viewingRule.version}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Description Section */}
-                {viewingRule.nlTemplate && (
-                  <div>
-                    <h3 className="text-sm font-semibold mb-2">Description</h3>
-                    <p className="text-sm leading-relaxed bg-muted/40 p-3 rounded-lg border border-muted">
-                      {viewingRule.nlTemplate}
-                    </p>
-                  </div>
-                )}
-
-                {/* Applies To Section */}
-                {viewingRule.appliesTo && viewingRule.appliesTo.length > 0 && (
-                  <div>
-                    <h3 className="text-sm font-semibold mb-3">Applies To</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {viewingRule.appliesTo.map((tag, idx) => (
-                        <Badge key={idx} variant="secondary">
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Configuration Section */}
-                {viewingRule.definition &&
-                  Object.keys(viewingRule.definition).length > 0 && (
-                    <div>
-                      <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                        <IconCode className="h-4 w-4" />
-                        Configuration
-                      </h3>
-                      <pre className="bg-muted/60 p-4 rounded-lg text-xs overflow-auto max-h-64 font-mono border border-muted">
-                        {JSON.stringify(viewingRule.definition, null, 2)}
-                      </pre>
-                    </div>
-                  )}
-              </div>
-
-              <Separator />
-
-              <DialogFooter className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setIsViewDialogOpen(false);
-                    handleEditClick(viewingRule);
-                  }}
-                >
-                  <IconEdit className="mr-2 h-4 w-4" />
-                  Edit Rule
-                </Button>
-                <Button onClick={() => setIsViewDialogOpen(false)}>
-                  Close
-                </Button>
-              </DialogFooter>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* View Rule Modal */}
+      <ViewRuleModal
+        open={isViewDialogOpen}
+        onOpenChange={setIsViewDialogOpen}
+        rule={viewingRule ? { ...viewingRule, id: viewingRule._id } : null}
+        onEdit={() => {
+          if (viewingRule) {
+            setIsViewDialogOpen(false);
+            handleEditClick(viewingRule);
+          }
+        }}
+        getTypeLabel={getTypeLabel}
+      />
     </div>
   );
 }

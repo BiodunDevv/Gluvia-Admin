@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useAuditStore } from "@/stores/useAuditStore";
 import { Button } from "@/components/ui/button";
 import { IconRefresh } from "@tabler/icons-react";
-import { AuditDataTable } from "@/components/audit-data-table";
+import { AuditDataTable } from "@/components/AllTables/audit-data-table";
 
 export default function AuditLogsPage() {
   const { logs, pagination, isLoading, fetchAuditLogs } = useAuditStore();
@@ -33,10 +33,12 @@ export default function AuditLogsPage() {
 
   return (
     <div className="space-y-6 px-4 lg:px-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Audit Logs</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+            Audit Logs
+          </h1>
+          <p className="text-sm text-muted-foreground">
             Track all administrative actions and system events
           </p>
         </div>
@@ -44,6 +46,7 @@ export default function AuditLogsPage() {
           variant="outline"
           onClick={() => fetchAuditLogs({ page: 1, limit: 50 })}
           disabled={isLoading}
+          className="w-full sm:w-auto"
         >
           <IconRefresh className="mr-2 h-4 w-4" />
           Refresh

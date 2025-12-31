@@ -33,6 +33,7 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   isHydrated: boolean;
+  isLoggingOut: boolean;
 
   // Actions
   login: (email: string, password: string) => Promise<boolean>;
@@ -67,8 +68,12 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      useAuthStore.getState().logout();
-      toast.error("Session expired. Please login again.");
+      const state = useAuthStore.getState();
+      // Only logout if not already logging out and user is authenticated
+      if (!state.isLoggingOut && state.isAuthenticated) {
+        state.logout();
+        toast.error("Session expired. Please login again.");
+      }
     }
     return Promise.reject(error);
   }
@@ -82,6 +87,7 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       isLoading: false,
       isHydrated: false,
+      isLoggingOut: false,
 
       login: async (email: string, password: string) => {
         set({ isLoading: true });
@@ -122,6 +128,11 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: async () => {
+        // Prevent multiple logout calls
+        if (get().isLoggingOut) return;
+
+        set({ isLoggingOut: true });
+
         try {
           const response = await api.post("/auth/logout");
           const message = response.data?.message || "Logged out successfully";
@@ -130,6 +141,7 @@ export const useAuthStore = create<AuthState>()(
             user: null,
             token: null,
             isAuthenticated: false,
+            isLoggingOut: false,
           });
 
           toast.success(message);
@@ -140,6 +152,7 @@ export const useAuthStore = create<AuthState>()(
             user: null,
             token: null,
             isAuthenticated: false,
+            isLoggingOut: false,
           });
           toast.success("Logged out successfully");
         }

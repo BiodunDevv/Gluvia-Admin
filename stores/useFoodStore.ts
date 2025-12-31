@@ -6,29 +6,31 @@ import { toast } from "sonner";
 export interface Food {
   _id: string;
   localName: string;
-  canonicalName: string;
-  category: string;
+  canonicalName?: string;
+  category?: string;
   nutrients: {
     calories: number;
     carbs_g: number;
     protein_g: number;
     fat_g: number;
     fibre_g: number;
-    gi: number;
+    gi: number | null;
   };
   portionSizes: Array<{
     name: string;
     grams: number;
-    carbs_g: number;
+    carbs_g?: number;
   }>;
-  affordability: string;
-  tags: string[];
-  source: string;
+  affordability?: "low" | "medium" | "high";
+  tags?: string[];
+  imageUrl?: string;
+  regionVariants?: Array<{
+    region: string;
+    note: string;
+  }>;
+  source?: "manual" | "validated" | "estimated";
   version: number;
   deleted: boolean;
-  images: string[];
-  regionVariants: string[];
-  __v: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -50,6 +52,14 @@ interface FoodFilters {
   limit?: number;
 }
 
+interface ImageSearchResult {
+  foodName: string;
+  searchQuery: string;
+  imageUrl: string;
+  source: "curated" | "google" | "unsplash" | "placeholder" | "none";
+  usedAI: boolean;
+}
+
 interface FoodState {
   foods: Food[];
   currentFood: Food | null;
@@ -62,7 +72,16 @@ interface FoodState {
   createFood: (data: Partial<Food>) => Promise<boolean>;
   updateFood: (id: string, data: Partial<Food>) => Promise<boolean>;
   deleteFood: (id: string) => Promise<boolean>;
-  batchUploadFoods: (foods: Partial<Food>[]) => Promise<boolean>;
+  batchUploadFoods: (
+    foods: Partial<Food>[]
+  ) => Promise<
+    | boolean
+    | { successCount: number; skippedCount?: number; totalCount: number }
+  >;
+  searchFoodImage: (
+    foodName: string,
+    useAI?: boolean
+  ) => Promise<ImageSearchResult | null>;
   setCurrentFood: (food: Food | null) => void;
 }
 
@@ -165,30 +184,32 @@ export const useFoodStore = create<FoodState>((set, get) => ({
   batchUploadFoods: async (foods: Partial<Food>[]) => {
     set({ isLoading: true });
     try {
-      const response = await api.post("/admin/foods/batch", { foods });
+      const response = await api.post("/foods/batch", { foods });
 
       const stats = response.data.stats;
-      
+
       // Check if there are any errors
       if (stats.results && stats.results.length > 0) {
         const errors = stats.results.filter((r: any) => !r.success);
-        
+
         if (errors.length > 0) {
           // Show first few errors
           errors.slice(0, 3).forEach((err: any) => {
             toast.error(`Item ${err.index + 1}: ${err.error}`);
           });
-          
+
           if (errors.length > 3) {
             toast.error(`...and ${errors.length - 3} more errors`);
           }
         }
       }
-      
+
       if (stats.successCount > 0) {
-        toast.success(
-          `Batch upload complete! Success: ${stats.successCount}/${stats.totalCount}`
-        );
+        let message = `Batch upload complete! Success: ${stats.successCount}/${stats.totalCount}`;
+        if (stats.skippedCount && stats.skippedCount > 0) {
+          message += ` (Skipped: ${stats.skippedCount} - already exist)`;
+        }
+        toast.success(message);
       } else {
         toast.error("Batch upload failed. Please check the errors above.");
       }
@@ -197,15 +218,31 @@ export const useFoodStore = create<FoodState>((set, get) => ({
       if (stats.successCount > 0) {
         await get().fetchFoods();
       }
-      
+
       set({ isLoading: false });
-      return stats.successCount > 0;
+      return stats.successCount > 0 ? stats : false;
     } catch (error: any) {
       const message =
         error.response?.data?.error?.message || "Failed to upload foods";
       toast.error(message);
       set({ isLoading: false });
       return false;
+    }
+  },
+
+  searchFoodImage: async (foodName: string, useAI = true) => {
+    try {
+      const response = await api.post("/foods/search-image", {
+        foodName,
+        useAI,
+      });
+
+      return response.data.data;
+    } catch (error: any) {
+      const message =
+        error.response?.data?.error?.message || "Failed to search for image";
+      toast.error(message);
+      return null;
     }
   },
 

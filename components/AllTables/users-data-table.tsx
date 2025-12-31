@@ -566,7 +566,7 @@ export function UsersDataTable({
               value={roleFilter || "all"}
               onValueChange={onRoleFilterChange}
             >
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Filter by role" />
               </SelectTrigger>
               <SelectContent>
@@ -683,9 +683,9 @@ export function UsersDataTable({
         )}
       </div>
 
-      {/* Pagination */}
-      <div className="flex items-center justify-between px-2">
-        <div className="text-muted-foreground text-sm">
+      {/* Pagination Footer */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-t pt-4">
+        <div className="text-muted-foreground text-sm order-2 sm:order-1">
           Showing {pagination.pageIndex * pagination.pageSize + 1} to{" "}
           {Math.min(
             (pagination.pageIndex + 1) * pagination.pageSize,
@@ -693,9 +693,12 @@ export function UsersDataTable({
           )}{" "}
           of {data.length} results
         </div>
-        <div className="flex items-center gap-2">
-          <div className="hidden items-center gap-2 lg:flex">
-            <Label htmlFor="rows-per-page" className="text-sm font-medium">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-2 order-1 sm:order-2">
+          <div className="flex items-center gap-2">
+            <Label
+              htmlFor="rows-per-page"
+              className="text-sm font-medium whitespace-nowrap"
+            >
               Rows per page
             </Label>
             <Select
@@ -716,13 +719,14 @@ export function UsersDataTable({
               </SelectContent>
             </Select>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 justify-between sm:justify-start">
             <Button
               variant="outline"
               size="icon"
               className="size-8"
               onClick={() => table.setPageIndex(0)}
               disabled={!table.getCanPreviousPage()}
+              title="First page"
             >
               <IconChevronsLeft className="h-4 w-4" />
             </Button>
@@ -732,10 +736,11 @@ export function UsersDataTable({
               className="size-8"
               onClick={() => table.previousPage()}
               disabled={!table.getCanPreviousPage()}
+              title="Previous page"
             >
               <IconChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="px-2 text-sm">
+            <span className="px-2 text-sm font-medium min-w-24 text-center">
               Page {pagination.pageIndex + 1} of {table.getPageCount()}
             </span>
             <Button
@@ -744,6 +749,7 @@ export function UsersDataTable({
               className="size-8"
               onClick={() => table.nextPage()}
               disabled={!table.getCanNextPage()}
+              title="Next page"
             >
               <IconChevronRight className="h-4 w-4" />
             </Button>
@@ -753,6 +759,7 @@ export function UsersDataTable({
               className="size-8"
               onClick={() => table.setPageIndex(table.getPageCount() - 1)}
               disabled={!table.getCanNextPage()}
+              title="Last page"
             >
               <IconChevronsRight className="h-4 w-4" />
             </Button>

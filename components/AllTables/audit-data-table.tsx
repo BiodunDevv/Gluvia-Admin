@@ -454,16 +454,16 @@ export function AuditDataTable({
     <div className="flex flex-col gap-4">
       {/* Filter Controls */}
       {onActionFilterChange && (
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
           <div className="flex items-center gap-2">
             <IconFilter className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Filter by Action</span>
+            <span className="text-sm font-medium">Filter</span>
           </div>
           <Select
             value={actionFilter || "all"}
             onValueChange={onActionFilterChange}
           >
-            <SelectTrigger className="w-[200px]">
+            <SelectTrigger className="w-full sm:w-[200px]">
               <SelectValue placeholder="All Actions" />
             </SelectTrigger>
             <SelectContent>
@@ -576,9 +576,9 @@ export function AuditDataTable({
         )}
       </div>
 
-      {/* Pagination */}
-      <div className="flex items-center justify-between px-2">
-        <div className="text-muted-foreground text-sm">
+      {/* Pagination Footer */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-t pt-4">
+        <div className="text-muted-foreground text-sm order-2 sm:order-1">
           Showing{" "}
           {externalPagination
             ? `${
@@ -593,10 +593,13 @@ export function AuditDataTable({
               )} of ${data.length}`}{" "}
           results
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-2 order-1 sm:order-2">
           {!externalPagination && (
-            <div className="hidden items-center gap-2 lg:flex">
-              <Label htmlFor="rows-per-page" className="text-sm font-medium">
+            <div className="flex items-center gap-2">
+              <Label
+                htmlFor="rows-per-page"
+                className="text-sm font-medium whitespace-nowrap"
+              >
                 Rows per page
               </Label>
               <Select
@@ -621,7 +624,7 @@ export function AuditDataTable({
               </Select>
             </div>
           )}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 justify-between sm:justify-start">
             <Button
               variant="outline"
               size="icon"
@@ -634,6 +637,7 @@ export function AuditDataTable({
                   ? externalPagination.page === 1
                   : !table.getCanPreviousPage()
               }
+              title="First page"
             >
               <IconChevronsLeft className="h-4 w-4" />
             </Button>
@@ -651,10 +655,11 @@ export function AuditDataTable({
                   ? externalPagination.page === 1
                   : !table.getCanPreviousPage()
               }
+              title="Previous page"
             >
               <IconChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="px-2 text-sm">
+            <span className="px-2 text-sm font-medium min-w-24 text-center">
               Page{" "}
               {externalPagination
                 ? externalPagination.page
@@ -678,6 +683,7 @@ export function AuditDataTable({
                   ? externalPagination.page === externalPagination.totalPages
                   : !table.getCanNextPage()
               }
+              title="Next page"
             >
               <IconChevronRight className="h-4 w-4" />
             </Button>
@@ -695,6 +701,7 @@ export function AuditDataTable({
                   ? externalPagination.page === externalPagination.totalPages
                   : !table.getCanNextPage()
               }
+              title="Last page"
             >
               <IconChevronsRight className="h-4 w-4" />
             </Button>

@@ -1,11 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import {
   IconCreditCard,
   IconDotsVertical,
   IconLogout,
   IconNotification,
   IconUserCircle,
+  IconLoader2,
 } from "@tabler/icons-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -37,6 +39,7 @@ export function NavUser({
   onLogout?: () => void;
 }) {
   const { isMobile } = useSidebar();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // Generate user initials from name
   const getInitials = (name: string) => {
@@ -48,6 +51,12 @@ export function NavUser({
   };
 
   const initials = getInitials(user.name);
+
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
+    onLogout?.();
+  };
 
   return (
     <SidebarMenu>
@@ -111,9 +120,17 @@ export function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={onLogout}>
-              <IconLogout />
-              Log out
+            <DropdownMenuItem
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              className="cursor-pointer"
+            >
+              {isLoggingOut ? (
+                <IconLoader2 className="animate-spin" />
+              ) : (
+                <IconLogout />
+              )}
+              {isLoggingOut ? "Logging out..." : "Log out"}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

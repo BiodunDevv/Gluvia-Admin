@@ -95,6 +95,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { Food } from "@/stores/useFoodStore";
+import { ImagePreviewModal } from "@/components/Modals/ImagePreviewModal";
 
 // Drag handle component
 function DragHandle({ id }: { id: string }) {
@@ -119,27 +120,37 @@ function FoodDetailViewer({
   food,
   onEdit,
   onDelete,
+  isOpen,
+  onOpenChange,
 }: {
   food: Food;
   onEdit: (id: string) => void;
   onDelete: (food: Food) => void;
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
   const isMobile = useIsMobile();
 
-  const getGIColor = (gi: number) => {
+  const getGIColor = (gi: number | null) => {
+    if (gi === null) return "text-gray-600 bg-gray-100";
     if (gi <= 55) return "text-green-600 bg-green-100";
     if (gi <= 69) return "text-amber-600 bg-amber-100";
     return "text-red-600 bg-red-100";
   };
 
-  const getGILabel = (gi: number) => {
+  const getGILabel = (gi: number | null) => {
+    if (gi === null) return "N/A";
     if (gi <= 55) return "Low GI";
     if (gi <= 69) return "Medium GI";
     return "High GI";
   };
 
   return (
-    <Drawer direction={isMobile ? "bottom" : "right"}>
+    <Drawer
+      direction={isMobile ? "bottom" : "right"}
+      open={isOpen}
+      onOpenChange={onOpenChange}
+    >
       <DrawerTrigger asChild>
         <Button
           variant="link"
@@ -148,12 +159,39 @@ function FoodDetailViewer({
           {food.localName}
         </Button>
       </DrawerTrigger>
-      <DrawerContent className="max-h-[90vh]">
+      <DrawerContent
+        className={isMobile ? "max-h-[90vh]" : "h-screen w-full sm:max-w-lg"}
+      >
         <DrawerHeader className="gap-1">
           <DrawerTitle className="text-xl">{food.localName}</DrawerTitle>
           <DrawerDescription>{food.canonicalName}</DrawerDescription>
         </DrawerHeader>
-        <div className="flex flex-col gap-4 overflow-y-auto px-4 text-sm">
+        <div className="flex flex-col gap-4 overflow-y-auto px-4 pb-4 text-sm">
+          {/* Food Image */}
+          {food.imageUrl && (
+            <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted border">
+              <img
+                src={food.imageUrl}
+                alt={food.localName}
+                className="h-full w-full object-cover"
+                loading="lazy"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = "none";
+                  const parent = target.parentElement;
+                  if (parent) {
+                    parent.classList.add(
+                      "flex",
+                      "items-center",
+                      "justify-center"
+                    );
+                    parent.innerHTML = `<div class="flex flex-col items-center justify-center gap-2 text-center p-6"><svg class="h-16 w-16 text-muted-foreground/40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg><span class="text-sm font-medium text-muted-foreground">${food.localName}</span><span class="text-xs text-muted-foreground/60">Image not available</span></div>`;
+                  }
+                }}
+              />
+            </div>
+          )}
+
           {/* Category & Status */}
           <div className="flex items-center gap-2 flex-wrap">
             <Badge variant="outline">{food.category}</Badge>
@@ -164,7 +202,7 @@ function FoodDetailViewer({
               variant="secondary"
               className={getGIColor(food.nutrients.gi)}
             >
-              {getGILabel(food.nutrients.gi)} ({food.nutrients.gi})
+              {getGILabel(food.nutrients.gi)} ({food.nutrients.gi ?? "N/A"})
             </Badge>
           </div>
 
@@ -279,13 +317,22 @@ function FoodDetailViewer({
           </div>
         </div>
         <DrawerFooter className="flex-row gap-2">
-          <Button onClick={() => onEdit(food._id)} className="flex-1">
+          <Button
+            onClick={() => {
+              onEdit(food._id);
+              onOpenChange?.(false);
+            }}
+            className="flex-1"
+          >
             <IconEdit className="mr-2 h-4 w-4" />
             Edit
           </Button>
           <Button
             variant="destructive"
-            onClick={() => onDelete(food)}
+            onClick={() => {
+              onDelete(food);
+              onOpenChange?.(false);
+            }}
             className="flex-1"
           >
             <IconTrash className="mr-2 h-4 w-4" />
@@ -341,7 +388,9 @@ function DraggableRow({
 // Create columns factory function
 function createColumns(
   onEdit: (id: string) => void,
-  onDelete: (food: Food) => void
+  onDelete: (food: Food) => void,
+  viewingFoodId: string | null,
+  onViewingFoodIdChange: (id: string | null) => void
 ): ColumnDef<Food>[] {
   return [
     {
@@ -351,9 +400,9 @@ function createColumns(
     },
     {
       id: "number",
-      header: "#",
+      header: () => <div className="text-center">#</div>,
       cell: ({ row }) => (
-        <div className="flex items-center justify-center text-muted-foreground font-medium">
+        <div className="text-center text-muted-foreground font-medium">
           {row.index + 1}
         </div>
       ),
@@ -368,6 +417,10 @@ function createColumns(
           food={row.original}
           onEdit={onEdit}
           onDelete={onDelete}
+          isOpen={viewingFoodId === row.original._id}
+          onOpenChange={(open) =>
+            onViewingFoodIdChange(open ? row.original._id : null)
+          }
         />
       ),
       enableHiding: false,
@@ -387,13 +440,14 @@ function createColumns(
       cell: ({ row }) => {
         const gi = row.original.nutrients.gi;
         const getGIColor = () => {
+          if (gi === null) return "bg-gray-100 text-gray-700";
           if (gi <= 55) return "bg-green-100 text-green-700";
           if (gi <= 69) return "bg-amber-100 text-amber-700";
           return "bg-red-100 text-red-700";
         };
         return (
           <Badge variant="secondary" className={getGIColor()}>
-            {gi}
+            {gi ?? "N/A"}
           </Badge>
         );
       },
@@ -456,6 +510,90 @@ function createColumns(
       ),
     },
     {
+      id: "image",
+      header: "Image",
+      cell: ({ row }) => {
+        const food = row.original;
+        const [isImageModalOpen, setIsImageModalOpen] = React.useState(false);
+        const [imageStatus, setImageStatus] = React.useState<
+          "loading" | "valid" | "invalid"
+        >("loading");
+
+        // Check if image URL is valid
+        React.useEffect(() => {
+          if (!food.imageUrl) {
+            setImageStatus("invalid");
+            return;
+          }
+
+          // Check for placeholder images
+          if (food.imageUrl.includes("via.placeholder.com")) {
+            setImageStatus("invalid");
+            return;
+          }
+
+          // Validate image by loading it
+          const img = new Image();
+          img.onload = () => setImageStatus("valid");
+          img.onerror = () => setImageStatus("invalid");
+          img.src = food.imageUrl;
+        }, [food.imageUrl]);
+
+        if (!food.imageUrl || imageStatus === "invalid") {
+          return (
+            <div className="flex items-center justify-center w-10 h-10 rounded-md bg-muted/50 border border-dashed border-muted-foreground/30">
+              <svg
+                className="h-4 w-4 text-muted-foreground/50"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="1.5"
+                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
+              </svg>
+            </div>
+          );
+        }
+
+        if (imageStatus === "loading") {
+          return (
+            <div className="flex items-center justify-center w-10 h-10 rounded-md bg-muted/50">
+              <IconLoader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            </div>
+          );
+        }
+
+        return (
+          <>
+            <button
+              onClick={() => setIsImageModalOpen(true)}
+              className="relative group w-10 h-10 rounded-md overflow-hidden border border-border hover:border-primary/50 transition-all cursor-pointer"
+            >
+              <img
+                src={food.imageUrl}
+                alt={food.localName}
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center">
+                <IconEye className="h-4 w-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            </button>
+            <ImagePreviewModal
+              imageUrl={food.imageUrl}
+              foodName={food.localName}
+              isOpen={isImageModalOpen}
+              onOpenChange={setIsImageModalOpen}
+            />
+          </>
+        );
+      },
+      enableSorting: false,
+    },
+    {
       id: "actions",
       cell: ({ row }) => (
         <DropdownMenu>
@@ -474,7 +612,9 @@ function createColumns(
               <IconEdit className="mr-2 h-4 w-4" />
               Edit
             </DropdownMenuItem>
-            <DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => onViewingFoodIdChange(row.original._id)}
+            >
               <IconEye className="mr-2 h-4 w-4" />
               View Details
             </DropdownMenuItem>
@@ -538,6 +678,7 @@ export function FoodsDataTable({
     pageIndex: 0,
     pageSize: 20,
   });
+  const [viewingFoodId, setViewingFoodId] = React.useState<string | null>(null);
 
   const sortableId = React.useId();
   const sensors = useSensors(
@@ -547,8 +688,8 @@ export function FoodsDataTable({
   );
 
   const columns = React.useMemo(
-    () => createColumns(onEdit, onDelete),
-    [onEdit, onDelete]
+    () => createColumns(onEdit, onDelete, viewingFoodId, setViewingFoodId),
+    [onEdit, onDelete, viewingFoodId]
   );
 
   // Update data when props change
@@ -620,7 +761,7 @@ export function FoodsDataTable({
               value={categoryValue || "all"}
               onValueChange={(v) => onCategoryChange?.(v)}
             >
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-37.5">
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent>
@@ -744,9 +885,9 @@ export function FoodsDataTable({
         )}
       </div>
 
-      {/* Pagination */}
-      <div className="flex items-center justify-between px-2">
-        <div className="text-muted-foreground text-sm">
+      {/* Pagination Footer */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-t pt-4">
+        <div className="text-muted-foreground text-sm order-2 sm:order-1">
           Showing{" "}
           {externalPagination
             ? `${
@@ -761,10 +902,13 @@ export function FoodsDataTable({
               )} of ${data.length}`}{" "}
           results
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-2 order-1 sm:order-2">
           {!externalPagination && (
-            <div className="hidden items-center gap-2 lg:flex">
-              <Label htmlFor="rows-per-page" className="text-sm font-medium">
+            <div className="flex items-center gap-2">
+              <Label
+                htmlFor="rows-per-page"
+                className="text-sm font-medium whitespace-nowrap"
+              >
                 Rows per page
               </Label>
               <Select
@@ -789,7 +933,7 @@ export function FoodsDataTable({
               </Select>
             </div>
           )}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 justify-between sm:justify-start">
             <Button
               variant="outline"
               size="icon"
@@ -802,6 +946,7 @@ export function FoodsDataTable({
                   ? externalPagination.page === 1
                   : !table.getCanPreviousPage()
               }
+              title="First page"
             >
               <IconChevronsLeft className="h-4 w-4" />
             </Button>
@@ -819,10 +964,11 @@ export function FoodsDataTable({
                   ? externalPagination.page === 1
                   : !table.getCanPreviousPage()
               }
+              title="Previous page"
             >
               <IconChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="px-2 text-sm">
+            <span className="px-2 text-sm font-medium min-w-24 text-center">
               Page{" "}
               {externalPagination
                 ? externalPagination.page
@@ -846,6 +992,7 @@ export function FoodsDataTable({
                   ? externalPagination.page === externalPagination.totalPages
                   : !table.getCanNextPage()
               }
+              title="Next page"
             >
               <IconChevronRight className="h-4 w-4" />
             </Button>
@@ -863,6 +1010,7 @@ export function FoodsDataTable({
                   ? externalPagination.page === externalPagination.totalPages
                   : !table.getCanNextPage()
               }
+              title="Last page"
             >
               <IconChevronsRight className="h-4 w-4" />
             </Button>

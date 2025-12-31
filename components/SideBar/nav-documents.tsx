@@ -35,7 +35,16 @@ export function NavDocuments({
     icon: Icon;
   }[];
 }) {
-  const { isMobile } = useSidebar();
+  const { isMobile, setOpenMobile } = useSidebar();
+
+  const handleNavClick = (e: React.MouseEvent) => {
+    if (isMobile) {
+      // Small delay to ensure smooth animation
+      setTimeout(() => {
+        setOpenMobile(false);
+      }, 100);
+    }
+  };
 
   return (
     <SidebarGroup className="group-data-[collapsible=icon]:hidden">
@@ -43,7 +52,7 @@ export function NavDocuments({
       <SidebarMenu>
         {items.map((item) => (
           <SidebarMenuItem key={item.name}>
-            <SidebarMenuButton asChild>
+            <SidebarMenuButton asChild onClick={handleNavClick}>
               <Link href={item.url}>
                 <item.icon />
                 <span>{item.name}</span>

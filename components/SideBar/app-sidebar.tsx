@@ -26,10 +26,10 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { NavSecondary } from "./nav-secondary";
-import { NavDocuments } from "./nav-documents";
-import { NavMain } from "./nav-main";
-import { NavUser } from "./nav-user";
+import { NavSecondary } from "../SideBar/nav-secondary";
+import { NavDocuments } from "../SideBar/nav-documents";
+import { NavMain } from "../SideBar/nav-main";
+import { NavUser } from "../SideBar/nav-user";
 
 const navigationData = {
   navMain: [

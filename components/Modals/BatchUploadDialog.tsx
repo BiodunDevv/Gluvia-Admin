@@ -7,7 +7,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -36,24 +35,25 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface ParsedFood {
   localName: string;
-  canonicalName: string;
-  category: string;
+  canonicalName?: string;
+  category?: string;
+  imageUrl?: string;
   nutrients: {
     calories: number;
     carbs_g: number;
     protein_g: number;
     fat_g: number;
     fibre_g: number;
-    gi: number;
+    gi: number | null;
   };
   portionSizes: Array<{
     name: string;
     grams: number;
-    carbs_g: number;
+    carbs_g?: number;
   }>;
-  affordability: string;
+  affordability?: "low" | "medium" | "high";
   tags?: string[];
-  source?: string;
+  source?: "manual" | "validated" | "estimated";
 }
 
 interface BatchUploadDialogProps {
@@ -70,6 +70,11 @@ export function BatchUploadDialog({
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [step, setStep] = useState<"upload" | "preview" | "complete">("upload");
   const [jsonInput, setJsonInput] = useState("");
+  const [uploadStats, setUploadStats] = useState<{
+    successCount: number;
+    skippedCount?: number;
+    totalCount: number;
+  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const downloadTemplate = () => {
@@ -78,6 +83,7 @@ export function BatchUploadDialog({
         localName: "Jollof Rice",
         canonicalName: "Tomato Rice Dish",
         category: "Grains & Staples",
+        imageUrl: "https://example.com/jollof-rice.jpg",
         nutrients: {
           calories: 250,
           carbs_g: 45,
@@ -111,6 +117,7 @@ export function BatchUploadDialog({
         localName: "Eba",
         canonicalName: "Cassava Swallow",
         category: "Grains & Staples",
+        imageUrl: "https://example.com/eba.jpg",
         nutrients: {
           calories: 360,
           carbs_g: 88,
@@ -244,6 +251,15 @@ export function BatchUploadDialog({
       errors.push(`Row ${index + 1}: tags must be an array`);
     }
 
+    const validSourceValues = ["manual", "validated", "estimated"];
+    if (food.source && !validSourceValues.includes(food.source)) {
+      errors.push(
+        `Row ${index + 1}: source must be one of: ${validSourceValues.join(
+          ", "
+        )}`
+      );
+    }
+
     return errors;
   };
 
@@ -288,9 +304,12 @@ export function BatchUploadDialog({
         return;
       }
 
+      const validSourceValues = ["manual", "validated", "estimated"];
       const normalizedData = data.map((food: ParsedFood) => ({
         ...food,
-        source: food?.source ?? "validated",
+        source: validSourceValues.includes(food?.source ?? "")
+          ? food.source
+          : "validated",
       }));
 
       // Validate all foods
@@ -318,8 +337,15 @@ export function BatchUploadDialog({
   };
 
   const handleUpload = async () => {
-    const success = await batchUploadFoods(parsedFoods);
-    if (success) {
+    const result = await batchUploadFoods(parsedFoods);
+    if (result && typeof result === "object") {
+      setUploadStats(result);
+      setStep("complete");
+      setTimeout(() => {
+        handleClose();
+      }, 3000);
+    } else if (result === true) {
+      setUploadStats(null);
       setStep("complete");
       setTimeout(() => {
         handleClose();
@@ -332,6 +358,7 @@ export function BatchUploadDialog({
     setValidationErrors([]);
     setStep("upload");
     setJsonInput("");
+    setUploadStats(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -340,15 +367,13 @@ export function BatchUploadDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-5xl h-[85vh] flex flex-col gap-0 p-0">
-        <div className="px-6 pt-6 pb-4 border-b">
-          <DialogHeader>
-            <DialogTitle>Batch Upload Foods</DialogTitle>
-            <DialogDescription>
-              Upload multiple food items at once using JSON format
-            </DialogDescription>
-          </DialogHeader>
-        </div>
+      <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b">
+          <DialogTitle>Batch Upload Foods</DialogTitle>
+          <DialogDescription>
+            Upload multiple food items at once using JSON format
+          </DialogDescription>
+        </DialogHeader>
 
         {/* Upload Step */}
         {step === "upload" && (
@@ -398,7 +423,7 @@ export function BatchUploadDialog({
 ]'
                       value={jsonInput}
                       onChange={(e) => setJsonInput(e.target.value)}
-                      className="font-mono text-xs min-h-[350px] resize-none"
+                      className="font-mono text-xs min-h-87.5 resize-none"
                     />
                   </div>
                   <Button onClick={handleJsonPaste} className="w-full">
@@ -501,6 +526,7 @@ export function BatchUploadDialog({
                       <TableHead>#</TableHead>
                       <TableHead>Local Name</TableHead>
                       <TableHead>Category</TableHead>
+                      <TableHead>Image</TableHead>
                       <TableHead>GI</TableHead>
                       <TableHead>Calories</TableHead>
                       <TableHead>Carbs (g)</TableHead>
@@ -523,6 +549,21 @@ export function BatchUploadDialog({
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">{food.category}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          {food.imageUrl ? (
+                            <div className="w-12 h-12 rounded overflow-hidden bg-muted">
+                              <img
+                                src={food.imageUrl}
+                                alt={food.localName}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">
+                              No image
+                            </span>
+                          )}
                         </TableCell>
                         <TableCell>{food.nutrients.gi}</TableCell>
                         <TableCell>{food.nutrients.calories}</TableCell>
@@ -548,57 +589,81 @@ export function BatchUploadDialog({
 
         {/* Complete Step */}
         {step === "complete" && (
-          <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 space-y-4">
+          <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 space-y-6">
             <div className="rounded-full bg-green-100 p-4">
               <IconCheck className="h-12 w-12 text-green-600" />
             </div>
             <div className="text-center space-y-2">
               <h3 className="text-xl font-semibold">Upload Complete!</h3>
               <p className="text-sm text-muted-foreground">
-                Your foods have been successfully uploaded
+                Your foods have been successfully processed
               </p>
             </div>
+
+            {uploadStats && (
+              <div className="grid grid-cols-3 gap-4 w-full max-w-sm">
+                <div className="bg-green-50 rounded-lg p-4 text-center border border-green-200">
+                  <p className="text-2xl font-bold text-green-600">
+                    {uploadStats.successCount}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">Uploaded</p>
+                </div>
+                {uploadStats.skippedCount !== undefined &&
+                  uploadStats.skippedCount > 0 && (
+                    <div className="bg-amber-50 rounded-lg p-4 text-center border border-amber-200">
+                      <p className="text-2xl font-bold text-amber-600">
+                        {uploadStats.skippedCount}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Skipped
+                      </p>
+                    </div>
+                  )}
+                <div className="bg-blue-50 rounded-lg p-4 text-center border border-blue-200">
+                  <p className="text-2xl font-bold text-blue-600">
+                    {uploadStats.totalCount}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">Total</p>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
-        <div className="px-6 py-4 border-t bg-muted/30">
-          <DialogFooter>
-            {step === "upload" && (
-              <Button variant="outline" onClick={handleClose}>
-                Cancel
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t bg-muted/30">
+          {step === "upload" && (
+            <Button variant="outline" onClick={handleClose}>
+              Cancel
+            </Button>
+          )}
+          {step === "preview" && (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setStep("upload");
+                  setParsedFoods([]);
+                }}
+                disabled={isLoading}
+              >
+                Back
               </Button>
-            )}
-            {step === "preview" && (
-              <>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setStep("upload");
-                    setParsedFoods([]);
-                  }}
-                  disabled={isLoading}
-                >
-                  Back
-                </Button>
-                <Button onClick={handleUpload} disabled={isLoading}>
-                  {isLoading ? (
-                    <>
-                      <IconLoader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Uploading...
-                    </>
-                  ) : (
-                    <>
-                      <IconFileUpload className="mr-2 h-4 w-4" />
-                      Upload {parsedFoods.length} Items
-                    </>
-                  )}
-                </Button>
-              </>
-            )}
-            {step === "complete" && (
-              <Button onClick={handleClose}>Close</Button>
-            )}
-          </DialogFooter>
+              <Button onClick={handleUpload} disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <IconLoader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <IconFileUpload className="mr-2 h-4 w-4" />
+                    Upload {parsedFoods.length} Items
+                  </>
+                )}
+              </Button>
+            </>
+          )}
+          {step === "complete" && <Button onClick={handleClose}>Close</Button>}
         </div>
       </DialogContent>
     </Dialog>
