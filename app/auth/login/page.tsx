@@ -26,12 +26,19 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
-      <div className="bg-muted relative hidden lg:block">
+      <div className="bg-muted relative hidden lg:block overflow-hidden">
         <img
-          src="https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?q=80&w=2070&auto=format&fit=crop"
-          alt="Healthy food and diabetes management"
-          className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
+          src="https://images.unsplash.com/photo-1498837167922-ddd27525d352?q=80&w=2070&auto=format&fit=crop"
+          alt="Colorful healthy food spread with fresh vegetables and fruits"
+          className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.3] dark:grayscale-[30%]"
         />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+        <div className="absolute bottom-8 left-8 right-8 text-white">
+          <h2 className="text-2xl font-bold mb-2">Welcome to Gluvia Admin</h2>
+          <p className="text-sm text-white/80">
+            Manage nutrition data and help people make healthier food choices
+          </p>
+        </div>
       </div>
     </div>
   );
