@@ -7,26 +7,44 @@ export interface DashboardOverview {
   users: {
     total: number;
     active: number;
-    newThisMonth: number;
-    growth: number;
+    newLast30Days: number;
+    newLast7Days: number;
+    growthRate: string;
+  };
+  admins: {
+    total: number;
   };
   foods: {
     total: number;
-    manual: number;
-    validated: number;
-    estimated: number;
+    newLast30Days: number;
+    byCategory: Array<{
+      category: string;
+      count: number;
+    }>;
   };
   activity: {
-    totalMealLogs: number;
-    totalGlucoseLogs: number;
-    avgMealsPerUser: number;
-    avgGlucosePerUser: number;
+    mealLogs: {
+      total: number;
+      last24h: number;
+      last7Days: number;
+    };
+    glucoseLogs: {
+      total: number;
+      last24h: number;
+      last7Days: number;
+    };
   };
   recentActivity: Array<{
-    type: string;
-    description: string;
+    action: string;
+    user: {
+      name: string;
+      email: string;
+    } | null;
     timestamp: string;
-    user?: string;
+    target?: {
+      collection: string;
+      id: string;
+    };
   }>;
 }
 
@@ -46,36 +64,32 @@ export interface TopFood {
 
 export interface SystemHealth {
   status: "healthy" | "warning" | "critical";
-  uptime: number;
-  database: {
-    status: string;
-    responseTime: number;
+  metrics: {
+    recentErrors: number;
+    recentLogins: number;
+    failedLogins: number;
+    activeUsersLastHour: number;
   };
-  memory: {
-    used: number;
-    total: number;
-    percentage: number;
-  };
-  cpu: {
-    usage: number;
-  };
+  timestamp: string;
 }
 
 export interface UserEngagement {
-  dailyActiveUsers: number;
-  weeklyActiveUsers: number;
-  monthlyActiveUsers: number;
-  avgSessionDuration: number;
-  featureUsage: {
-    mealLogs: number;
-    glucoseLogs: number;
-    foodSearch: number;
-    recommendations: number;
+  totalUsers: number;
+  activeUsers: {
+    last7Days: number;
+    last30Days: number;
+    engagementRate7Days: string;
+    engagementRate30Days: string;
   };
-  retentionRate: {
-    day1: number;
-    day7: number;
-    day30: number;
+  featureUsage: {
+    usersWithMealLogs: number;
+    usersWithGlucoseLogs: number;
+    mealLogAdoptionRate: string;
+    glucoseLogAdoptionRate: string;
+  };
+  averages: {
+    mealLogsPerUser: number;
+    glucoseLogsPerUser: number;
   };
 }
 

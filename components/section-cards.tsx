@@ -32,18 +32,20 @@ export function SectionCards({ overview }: SectionCardsProps) {
   // Safe defaults for all numeric values
   const usersTotal = users.total ?? 0;
   const usersActive = users.active ?? 0;
-  const usersNewThisMonth = users.newThisMonth ?? 0;
-  const usersGrowth = users.growth ?? 0;
+  const usersNewLast30Days = users.newLast30Days ?? 0;
+  const usersNewLast7Days = users.newLast7Days ?? 0;
+  const usersGrowthRate = parseFloat(users.growthRate ?? "0");
 
   const foodsTotal = foods.total ?? 0;
-  const foodsValidated = foods.validated ?? 0;
-  const foodsManual = foods.manual ?? 0;
-  const foodsEstimated = foods.estimated ?? 0;
+  const foodsNewLast30Days = foods.newLast30Days ?? 0;
 
-  const totalMealLogs = activity.totalMealLogs ?? 0;
-  const totalGlucoseLogs = activity.totalGlucoseLogs ?? 0;
-  const avgMealsPerUser = activity.avgMealsPerUser ?? 0;
-  const avgGlucosePerUser = activity.avgGlucosePerUser ?? 0;
+  const totalMealLogs = activity.mealLogs.total ?? 0;
+  const mealLogsLast24h = activity.mealLogs.last24h ?? 0;
+  const mealLogsLast7Days = activity.mealLogs.last7Days ?? 0;
+
+  const totalGlucoseLogs = activity.glucoseLogs.total ?? 0;
+  const glucoseLogsLast24h = activity.glucoseLogs.last24h ?? 0;
+  const glucoseLogsLast7Days = activity.glucoseLogs.last7Days ?? 0;
 
   return (
     <div className="*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 px-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
@@ -58,14 +60,14 @@ export function SectionCards({ overview }: SectionCardsProps) {
           </CardTitle>
           <CardAction>
             <Badge variant="outline">
-              {usersGrowth >= 0 ? (
+              {usersGrowthRate >= 0 ? (
                 <>
-                  <IconTrendingUp />+{usersGrowth}%
+                  <IconTrendingUp />+{usersGrowthRate.toFixed(1)}%
                 </>
               ) : (
                 <>
                   <IconTrendingDown />
-                  {usersGrowth}%
+                  {usersGrowthRate.toFixed(1)}%
                 </>
               )}
             </Badge>
@@ -73,15 +75,15 @@ export function SectionCards({ overview }: SectionCardsProps) {
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
-            {usersActive} active users{" "}
-            {usersGrowth >= 0 ? (
+            {usersActive.toLocaleString()} active users{" "}
+            {usersGrowthRate >= 0 ? (
               <IconTrendingUp className="size-4" />
             ) : (
               <IconTrendingDown className="size-4" />
             )}
           </div>
           <div className="text-muted-foreground">
-            {usersNewThisMonth} new this month
+            +{usersNewLast7Days} this week • +{usersNewLast30Days} this month
           </div>
         </CardFooter>
       </Card>
@@ -97,16 +99,17 @@ export function SectionCards({ overview }: SectionCardsProps) {
           </CardTitle>
           <CardAction>
             <Badge variant="outline" className="text-green-600">
-              {foodsValidated} verified
+              +{foodsNewLast30Days} new
             </Badge>
           </CardAction>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
-            {foodsManual} manual entries <IconChartLine className="size-4" />
+            {foods.byCategory?.length ?? 0} categories{" "}
+            <IconChartLine className="size-4" />
           </div>
           <div className="text-muted-foreground">
-            {foodsEstimated} estimated values
+            {foodsNewLast30Days} added this month
           </div>
         </CardFooter>
       </Card>
@@ -129,10 +132,12 @@ export function SectionCards({ overview }: SectionCardsProps) {
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
-            {avgMealsPerUser.toFixed(1)} avg per user{" "}
+            {mealLogsLast24h.toLocaleString()} in last 24h{" "}
             <IconTrendingUp className="size-4" />
           </div>
-          <div className="text-muted-foreground">Strong engagement</div>
+          <div className="text-muted-foreground">
+            {mealLogsLast7Days.toLocaleString()} in last 7 days
+          </div>
         </CardFooter>
       </Card>
 
@@ -154,10 +159,12 @@ export function SectionCards({ overview }: SectionCardsProps) {
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
-            {avgGlucosePerUser.toFixed(1)} avg per user{" "}
+            {glucoseLogsLast24h.toLocaleString()} in last 24h{" "}
             <IconTrendingUp className="size-4" />
           </div>
-          <div className="text-muted-foreground">Health monitoring</div>
+          <div className="text-muted-foreground">
+            {glucoseLogsLast7Days.toLocaleString()} in last 7 days
+          </div>
         </CardFooter>
       </Card>
     </div>
