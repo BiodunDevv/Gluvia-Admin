@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   IconDashboard,
   IconDatabase,
-  IconInnerShadowTop,
+  IconDroplet,
   IconListDetails,
   IconSettings,
   IconFileText,
@@ -71,23 +71,23 @@ const navigationData = {
       icon: IconSettings,
     },
   ],
-  documents: [
-    {
-      name: "Documentation",
-      url: "/docs",
-      icon: IconFileText,
-    },
-    {
-      name: "API Reference",
-      url: "/api-docs",
-      icon: IconDatabase,
-    },
-    {
-      name: "Integration Guide",
-      url: "/integration",
-      icon: IconListDetails,
-    },
-  ],
+  // documents: [
+  //   {
+  //     name: "Documentation",
+  //     url: "/docs",
+  //     icon: IconFileText,
+  //   },
+  //   {
+  //     name: "API Reference",
+  //     url: "/api-docs",
+  //     icon: IconDatabase,
+  //   },
+  //   {
+  //     name: "Integration Guide",
+  //     url: "/integration",
+  //     icon: IconListDetails,
+  //   },
+  // ],
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -120,7 +120,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               className="data-[slot=sidebar-menu-button]:p-1.5!"
             >
               <Link href="/dashboard">
-                <IconInnerShadowTop className="size-5!" />
+                <IconDroplet className="size-5!" />
                 <span className="text-base font-semibold">Gluvia</span>
               </Link>
             </SidebarMenuButton>
@@ -129,7 +129,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={navigationData.navMain} />
-        <NavDocuments items={navigationData.documents} />
+        {/* <NavDocuments items={navigationData.documents} /> */}
         <NavSecondary items={navigationData.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>

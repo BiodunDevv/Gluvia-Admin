@@ -11,7 +11,7 @@ export interface AuditLog {
     email: string;
     name: string;
     role: string;
-  };
+  } | null;
   target?: {
     collection: string;
     id: string;

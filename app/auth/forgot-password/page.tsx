@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { GalleryVerticalEnd } from "lucide-react";
+import { IconDroplet } from "@tabler/icons-react";
 
 import { ForgotPasswordForm } from "@/components/Authentication/forgot-password-form";
 
@@ -15,7 +15,7 @@ export default function ForgotPasswordPage() {
         <div className="flex justify-center gap-2 md:justify-start">
           <a href="/" className="flex items-center gap-2 font-medium">
             <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
-              <GalleryVerticalEnd className="size-4" />
+              <IconDroplet className="size-4" />
             </div>
             Gluvia Admin
           </a>

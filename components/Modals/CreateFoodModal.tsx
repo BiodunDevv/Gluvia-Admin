@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useFoodStore } from "@/stores/useFoodStore";
 import { useImageUploadStore } from "@/stores/useImageUploadStore";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
 import {
   IconPhoto,
   IconUpload,
@@ -29,6 +30,7 @@ import {
   IconLoader2,
   IconX,
   IconCheck,
+  IconCloudUpload,
 } from "@tabler/icons-react";
 import { toast } from "sonner";
 
@@ -81,7 +83,8 @@ export function CreateFoodModal({
   isLoading,
 }: CreateFoodModalProps) {
   const { searchFoodImage } = useFoodStore();
-  const { uploadToCloudinary, isUploading } = useImageUploadStore();
+  const { uploadToCloudinary, isUploading, uploadProgress } =
+    useImageUploadStore();
 
   const [imageTab, setImageTab] = useState<"upload" | "search">("search");
   const [isSearching, setIsSearching] = useState(false);
@@ -124,31 +127,42 @@ export function CreateFoodModal({
     }
   };
 
-  const handleUseSuggestedImage = () => {
+  const handleUseSuggestedImage = useCallback(() => {
     if (suggestedImage) {
-      setFormData({ ...formData, imageUrl: suggestedImage });
+      setFormData((prev: typeof formData) => ({
+        ...prev,
+        imageUrl: suggestedImage,
+      }));
       setSuggestedImage(null);
       toast.success("Image added");
     }
-  };
+  }, [suggestedImage, setFormData]);
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleFileSelect = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
 
-    const url = await uploadToCloudinary(file);
-    if (url) {
-      setFormData({ ...formData, imageUrl: url });
-    }
-  };
+      const url = await uploadToCloudinary(file);
+      if (url) {
+        setFormData((prev: typeof formData) => ({ ...prev, imageUrl: url }));
+      }
 
-  const handleRemoveImage = () => {
-    setFormData({ ...formData, imageUrl: "" });
+      // Reset input so same file can be selected again
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    },
+    [uploadToCloudinary, setFormData]
+  );
+
+  const handleRemoveImage = useCallback(() => {
+    setFormData((prev: typeof formData) => ({ ...prev, imageUrl: "" }));
     setSuggestedImage(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
-  };
+  }, [setFormData]);
 
   const validateForm = () => {
     const required = [
@@ -293,28 +307,38 @@ export function CreateFoodModal({
                       onChange={handleFileSelect}
                       className="hidden"
                     />
-                    <Button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={isUploading}
-                      variant="outline"
-                      className="w-full h-9 text-xs"
-                    >
-                      {isUploading ? (
-                        <>
-                          <IconLoader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Uploading...
-                        </>
-                      ) : (
-                        <>
-                          <IconUpload className="w-4 h-4 mr-2" />
-                          Choose File
-                        </>
-                      )}
-                    </Button>
-                    <p className="text-[10px] text-muted-foreground text-center mt-2">
-                      JPG, PNG, WEBP • Max 5MB
-                    </p>
+
+                    {isUploading ? (
+                      <div className="space-y-3 py-4">
+                        <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                          <IconCloudUpload className="w-5 h-5 text-primary animate-pulse" />
+                          <span>Uploading image...</span>
+                        </div>
+                        <div className="space-y-2">
+                          <Progress value={uploadProgress} className="h-2" />
+                          <p className="text-xs text-center text-muted-foreground">
+                            {uploadProgress}% complete
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <Button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          variant="outline"
+                          className="w-full h-20 border-dashed flex flex-col gap-2"
+                        >
+                          <IconUpload className="w-6 h-6 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground">
+                            Click to upload or drag and drop
+                          </span>
+                        </Button>
+                        <p className="text-[10px] text-muted-foreground text-center mt-2">
+                          JPG, PNG, WEBP • Max 5MB
+                        </p>
+                      </>
+                    )}
                   </TabsContent>
                 </Tabs>
               )}

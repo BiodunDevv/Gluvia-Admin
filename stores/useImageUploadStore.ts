@@ -17,7 +17,7 @@ interface ImageUploadState {
   clearSearchedImage: () => void;
 }
 
-export const useImageUploadStore = create<ImageUploadState>((set) => ({
+export const useImageUploadStore = create<ImageUploadState>((set, get) => ({
   isUploading: false,
   uploadProgress: 0,
   searchedImage: null,
@@ -38,7 +38,7 @@ export const useImageUploadStore = create<ImageUploadState>((set) => ({
 
     set({ isUploading: true, uploadProgress: 0 });
 
-    try {
+    return new Promise<string | null>((resolve) => {
       const formData = new FormData();
       formData.append("file", file);
       formData.append(
@@ -46,33 +46,50 @@ export const useImageUploadStore = create<ImageUploadState>((set) => ({
         process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "ProfileX"
       );
 
-      // Upload to Cloudinary
-      const response = await fetch(
+      const xhr = new XMLHttpRequest();
+
+      // Track upload progress
+      xhr.upload.addEventListener("progress", (event) => {
+        if (event.lengthComputable) {
+          const progress = Math.round((event.loaded / event.total) * 100);
+          set({ uploadProgress: progress });
+        }
+      });
+
+      xhr.addEventListener("load", () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const data = JSON.parse(xhr.responseText);
+            set({ isUploading: false, uploadProgress: 100 });
+            toast.success("Image uploaded successfully!");
+            resolve(data.secure_url);
+          } catch {
+            set({ isUploading: false, uploadProgress: 0 });
+            toast.error("Failed to process upload response");
+            resolve(null);
+          }
+        } else {
+          set({ isUploading: false, uploadProgress: 0 });
+          toast.error("Upload failed");
+          resolve(null);
+        }
+      });
+
+      xhr.addEventListener("error", () => {
+        console.error("Upload error");
+        toast.error("Failed to upload image");
+        set({ isUploading: false, uploadProgress: 0 });
+        resolve(null);
+      });
+
+      xhr.open(
+        "POST",
         `https://api.cloudinary.com/v1_1/${
           process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "df4f0usnh"
-        }/image/upload`,
-        {
-          method: "POST",
-          body: formData,
-        }
+        }/image/upload`
       );
-
-      if (!response.ok) {
-        throw new Error("Upload failed");
-      }
-
-      const data = await response.json();
-
-      set({ isUploading: false, uploadProgress: 100 });
-      toast.success("Image uploaded successfully!");
-
-      return data.secure_url;
-    } catch (error: any) {
-      console.error("Upload error:", error);
-      toast.error("Failed to upload image");
-      set({ isUploading: false, uploadProgress: 0 });
-      return null;
-    }
+      xhr.send(formData);
+    });
   },
 
   resetUpload: () => {

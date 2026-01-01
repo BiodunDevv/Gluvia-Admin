@@ -170,30 +170,35 @@ function AuditLogDetailViewer({ log }: { log: AuditLog }) {
           <Separator />
 
           {/* Who performed the action */}
-          <div className="space-y-3">
-            <h4 className="font-semibold flex items-center gap-2">
-              <IconUser className="h-4 w-4" />
-              Performed By
-            </h4>
-            <div className="rounded-lg bg-muted/50 p-4 space-y-2">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Name</span>
-                <span className="font-medium">{log.who.name}</span>
+          {log.who && (
+            <>
+              <div className="space-y-3">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <IconUser className="h-4 w-4" />
+                  Performed By
+                </h4>
+                <div className="rounded-lg bg-muted/50 p-4 space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Name</span>
+                    <span className="font-medium">{log.who.name || "N/A"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Email</span>
+                    <span className="font-medium">
+                      {log.who.email || "N/A"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Role</span>
+                    <Badge variant="outline" className="capitalize">
+                      {log.who.role || "unknown"}
+                    </Badge>
+                  </div>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Email</span>
-                <span className="font-medium">{log.who.email}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Role</span>
-                <Badge variant="outline" className="capitalize">
-                  {log.who.role}
-                </Badge>
-              </div>
-            </div>
-          </div>
-
-          <Separator />
+              <Separator />
+            </>
+          )}
 
           {/* Target */}
           {log.target && (
@@ -293,9 +298,9 @@ function createColumns(): ColumnDef<AuditLog>[] {
     },
     {
       id: "number",
-      header: "#",
+      header: () => <div className="text-center">#</div>,
       cell: ({ row }) => (
-        <div className="flex items-center justify-center text-muted-foreground font-medium">
+        <div className="text-center text-muted-foreground font-medium">
           {row.index + 1}
         </div>
       ),
@@ -313,9 +318,9 @@ function createColumns(): ColumnDef<AuditLog>[] {
       header: "Performed By",
       cell: ({ row }) => (
         <div>
-          <p className="font-medium">{row.original.who.name}</p>
+          <p className="font-medium">{row.original.who?.name || "System"}</p>
           <p className="text-xs text-muted-foreground">
-            {row.original.who.email}
+            {row.original.who?.email || "N/A"}
           </p>
         </div>
       ),
@@ -325,7 +330,7 @@ function createColumns(): ColumnDef<AuditLog>[] {
       header: "Role",
       cell: ({ row }) => (
         <Badge variant="outline" className="capitalize">
-          {row.original.who.role}
+          {row.original.who?.role || "system"}
         </Badge>
       ),
     },
