@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { api } from "./useAuthStore";
 import { toast } from "sonner";
+import { getErrorMessage, getResponseData } from "@/lib/api-helpers";
 
 // Types
 export interface AuditLog {
@@ -60,12 +61,12 @@ export const useAuditStore = create<AuditState>((set) => ({
       const response = await api.get(`/admin/audit?${params}`);
 
       set({
-        logs: response.data.data || [],
-        pagination: response.data.pagination,
+        logs: getResponseData<AuditLog[]>(response) || [],
+        pagination: response.data.meta || response.data.pagination,
         isLoading: false,
       });
     } catch (error: any) {
-      toast.error("Failed to fetch audit logs");
+      toast.error(getErrorMessage(error, "Failed to fetch audit logs"));
       set({ isLoading: false });
     }
   },

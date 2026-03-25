@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { IconDroplet } from "@tabler/icons-react";
+import Image from "next/image";
 
 import { ForgotPasswordForm } from "@/components/Authentication/forgot-password-form";
 
@@ -14,8 +14,14 @@ export default function ForgotPasswordPage() {
       <div className="flex flex-col gap-4 p-6 md:p-10">
         <div className="flex justify-center gap-2 md:justify-start">
           <a href="/" className="flex items-center gap-2 font-medium">
-            <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
-              <IconDroplet className="size-4" />
+            <div className="bg-primary/10 flex size-8 items-center justify-center rounded-md">
+              <Image
+                src="/branding/logo.png"
+                alt="Gluvia logo"
+                width={18}
+                height={18}
+                className="h-[18px] w-[18px] object-contain"
+              />
             </div>
             Gluvia Admin
           </a>

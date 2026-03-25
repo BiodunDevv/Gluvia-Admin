@@ -27,7 +27,7 @@ interface EditUserModalProps {
     name: string;
     email: string;
     phone: string;
-    role: "user" | "health_worker";
+    role: "user";
   };
   setFormData: (data: any) => void;
   onSubmit: () => void;
@@ -108,7 +108,7 @@ export function EditUserModal({
               </FieldLabel>
               <Select
                 value={formData.role}
-                onValueChange={(value: "user" | "health_worker") =>
+                onValueChange={(value: "user") =>
                   setFormData({ ...formData, role: value })
                 }
                 disabled={isLoading}
@@ -119,7 +119,6 @@ export function EditUserModal({
                 <SelectContent>
                   <SelectGroup>
                     <SelectItem value="user">User</SelectItem>
-                    <SelectItem value="health_worker">Health Worker</SelectItem>
                   </SelectGroup>
                 </SelectContent>
               </Select>

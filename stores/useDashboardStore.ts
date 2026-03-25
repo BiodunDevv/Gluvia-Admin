@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { api } from "./useAuthStore";
 import { toast } from "sonner";
+import { getErrorMessage, getResponseData } from "@/lib/api-helpers";
 
 // Types
 export interface DashboardOverview {
@@ -167,12 +168,13 @@ export const useDashboardStore = create<DashboardState>((set) => ({
     set({ isLoadingOverview: true });
     try {
       const response = await api.get("/admin/dashboard/overview");
-      set({ overview: response.data.data, isLoadingOverview: false });
+      set({
+        overview: getResponseData<DashboardOverview | null>(response),
+        isLoadingOverview: false,
+      });
     } catch (error: any) {
       console.error("Failed to fetch dashboard overview:", error);
-      toast.error(
-        error.response?.data?.message || "Failed to fetch dashboard overview"
-      );
+      toast.error(getErrorMessage(error, "Failed to fetch dashboard overview"));
       set({ isLoadingOverview: false });
     }
   },
@@ -183,12 +185,13 @@ export const useDashboardStore = create<DashboardState>((set) => ({
       const response = await api.get(
         `/admin/dashboard/charts/user-growth?days=${days}`
       );
-      set({ userGrowthChart: response.data.data, isLoadingCharts: false });
+      set({
+        userGrowthChart: getResponseData<ChartDataPoint[]>(response) || [],
+        isLoadingCharts: false,
+      });
     } catch (error: any) {
       console.error("Failed to fetch user growth chart:", error);
-      toast.error(
-        error.response?.data?.message || "Failed to fetch user growth chart"
-      );
+      toast.error(getErrorMessage(error, "Failed to fetch user growth chart"));
       set({ isLoadingCharts: false });
     }
   },
@@ -199,12 +202,13 @@ export const useDashboardStore = create<DashboardState>((set) => ({
       const response = await api.get(
         `/admin/dashboard/charts/meal-logs?days=${days}`
       );
-      set({ mealLogsChart: response.data.data, isLoadingCharts: false });
+      set({
+        mealLogsChart: getResponseData<ChartDataPoint[]>(response) || [],
+        isLoadingCharts: false,
+      });
     } catch (error: any) {
       console.error("Failed to fetch meal logs chart:", error);
-      toast.error(
-        error.response?.data?.message || "Failed to fetch meal logs chart"
-      );
+      toast.error(getErrorMessage(error, "Failed to fetch meal logs chart"));
       set({ isLoadingCharts: false });
     }
   },
@@ -215,12 +219,13 @@ export const useDashboardStore = create<DashboardState>((set) => ({
       const response = await api.get(
         `/admin/dashboard/charts/glucose-logs?days=${days}`
       );
-      set({ glucoseLogsChart: response.data.data, isLoadingCharts: false });
+      set({
+        glucoseLogsChart: getResponseData<ChartDataPoint[]>(response) || [],
+        isLoadingCharts: false,
+      });
     } catch (error: any) {
       console.error("Failed to fetch glucose logs chart:", error);
-      toast.error(
-        error.response?.data?.message || "Failed to fetch glucose logs chart"
-      );
+      toast.error(getErrorMessage(error, "Failed to fetch glucose logs chart"));
       set({ isLoadingCharts: false });
     }
   },
@@ -231,10 +236,13 @@ export const useDashboardStore = create<DashboardState>((set) => ({
       const response = await api.get(
         `/admin/dashboard/top-foods?limit=${limit}`
       );
-      set({ topFoods: response.data.data, isLoadingTopFoods: false });
+      set({
+        topFoods: getResponseData<TopFood[]>(response) || [],
+        isLoadingTopFoods: false,
+      });
     } catch (error: any) {
       console.error("Failed to fetch top foods:", error);
-      toast.error(error.response?.data?.message || "Failed to fetch top foods");
+      toast.error(getErrorMessage(error, "Failed to fetch top foods"));
       set({ isLoadingTopFoods: false });
     }
   },
@@ -243,12 +251,13 @@ export const useDashboardStore = create<DashboardState>((set) => ({
     set({ isLoadingHealth: true });
     try {
       const response = await api.get("/admin/dashboard/system-health");
-      set({ systemHealth: response.data.data, isLoadingHealth: false });
+      set({
+        systemHealth: getResponseData<SystemHealth | null>(response),
+        isLoadingHealth: false,
+      });
     } catch (error: any) {
       console.error("Failed to fetch system health:", error);
-      toast.error(
-        error.response?.data?.message || "Failed to fetch system health"
-      );
+      toast.error(getErrorMessage(error, "Failed to fetch system health"));
       set({ isLoadingHealth: false });
     }
   },
@@ -257,12 +266,13 @@ export const useDashboardStore = create<DashboardState>((set) => ({
     set({ isLoadingEngagement: true });
     try {
       const response = await api.get("/admin/dashboard/user-engagement");
-      set({ userEngagement: response.data.data, isLoadingEngagement: false });
+      set({
+        userEngagement: getResponseData<UserEngagement | null>(response),
+        isLoadingEngagement: false,
+      });
     } catch (error: any) {
       console.error("Failed to fetch user engagement:", error);
-      toast.error(
-        error.response?.data?.message || "Failed to fetch user engagement"
-      );
+      toast.error(getErrorMessage(error, "Failed to fetch user engagement"));
       set({ isLoadingEngagement: false });
     }
   },
@@ -273,12 +283,13 @@ export const useDashboardStore = create<DashboardState>((set) => ({
       const response = await api.get(
         `/admin/dashboard/recent-users?limit=${limit}`
       );
-      set({ recentUsers: response.data.data, isLoadingRecentUsers: false });
+      set({
+        recentUsers: getResponseData<RecentUser[]>(response) || [],
+        isLoadingRecentUsers: false,
+      });
     } catch (error: any) {
       console.error("Failed to fetch recent users:", error);
-      toast.error(
-        error.response?.data?.message || "Failed to fetch recent users"
-      );
+      toast.error(getErrorMessage(error, "Failed to fetch recent users"));
       set({ isLoadingRecentUsers: false });
     }
   },
@@ -289,12 +300,13 @@ export const useDashboardStore = create<DashboardState>((set) => ({
       const response = await api.get(
         `/admin/dashboard/activity-heatmap?days=${days}`
       );
-      set({ activityHeatmap: response.data.data, isLoadingHeatmap: false });
+      set({
+        activityHeatmap: getResponseData<ActivityHeatmap[]>(response) || [],
+        isLoadingHeatmap: false,
+      });
     } catch (error: any) {
       console.error("Failed to fetch activity heatmap:", error);
-      toast.error(
-        error.response?.data?.message || "Failed to fetch activity heatmap"
-      );
+      toast.error(getErrorMessage(error, "Failed to fetch activity heatmap"));
       set({ isLoadingHeatmap: false });
     }
   },

@@ -2,6 +2,11 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import axios from "axios";
 import { toast } from "sonner";
+import {
+  getErrorMessage,
+  getResponseData,
+  getResponseMessage,
+} from "@/lib/api-helpers";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -97,8 +102,9 @@ export const useAuthStore = create<AuthState>()(
             password,
           });
 
-          const { user, token } = response.data.data;
-          const message = response.data.message || "Login successful";
+          const payload = getResponseData<any>(response) || {};
+          const { user, token } = payload;
+          const message = getResponseMessage(response, "Login successful");
 
           // Verify user is admin
           if (user.role !== "admin") {
@@ -117,11 +123,7 @@ export const useAuthStore = create<AuthState>()(
           toast.success(message);
           return true;
         } catch (error: any) {
-          const message =
-            error.response?.data?.error?.message ||
-            error.response?.data?.message ||
-            "Login failed";
-          toast.error(message);
+          toast.error(getErrorMessage(error, "Login failed"));
           set({ isLoading: false });
           return false;
         }
@@ -135,7 +137,7 @@ export const useAuthStore = create<AuthState>()(
 
         try {
           const response = await api.post("/auth/logout");
-          const message = response.data?.message || "Logged out successfully";
+          const message = getResponseMessage(response, "Logged out successfully");
 
           set({
             user: null,
@@ -169,7 +171,8 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true });
         try {
           const response = await api.get("/auth/me");
-          const { user } = response.data.data;
+          const payload = getResponseData<any>(response) || {};
+          const { user } = payload;
 
           // Verify user is admin
           if (user.role !== "admin") {
@@ -205,9 +208,12 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true });
         try {
           const response = await api.put("/auth/me", data);
-          const { user } = response.data.data;
-          const message =
-            response.data.message || "Profile updated successfully";
+          const payload = getResponseData<any>(response) || {};
+          const { user } = payload;
+          const message = getResponseMessage(
+            response,
+            "Profile updated successfully"
+          );
 
           set({
             user,
@@ -217,11 +223,7 @@ export const useAuthStore = create<AuthState>()(
           toast.success(message);
           return true;
         } catch (error: any) {
-          const message =
-            error.response?.data?.error?.message ||
-            error.response?.data?.message ||
-            "Failed to update profile";
-          toast.error(message);
+          toast.error(getErrorMessage(error, "Failed to update profile"));
           set({ isLoading: false });
           return false;
         }
@@ -234,19 +236,16 @@ export const useAuthStore = create<AuthState>()(
             `${API_URL}/auth/password-reset-request`,
             { email }
           );
-          const message =
-            response.data.message ||
-            "If the email exists, a password reset link has been sent";
+          const message = getResponseMessage(
+            response,
+            "If the email exists, a password reset link has been sent"
+          );
 
           toast.success(message);
           set({ isLoading: false });
           return true;
         } catch (error: any) {
-          const message =
-            error.response?.data?.error?.message ||
-            error.response?.data?.message ||
-            "Failed to send reset email";
-          toast.error(message);
+          toast.error(getErrorMessage(error, "Failed to send reset email"));
           set({ isLoading: false });
           return false;
         }
@@ -259,7 +258,10 @@ export const useAuthStore = create<AuthState>()(
             resetToken,
             newPassword,
           });
-          const message = response.data.message || "Password reset successful";
+          const message = getResponseMessage(
+            response,
+            "Password reset successful"
+          );
 
           toast.success(message);
           set({ isLoading: false });
@@ -272,11 +274,12 @@ export const useAuthStore = create<AuthState>()(
               toast.error(`${detail.field}: ${detail.message}`);
             });
           } else {
-            const message =
-              error.response?.data?.error?.message ||
-              error.response?.data?.message ||
-              "Failed to reset password. Token may be invalid or expired.";
-            toast.error(message);
+            toast.error(
+              getErrorMessage(
+                error,
+                "Failed to reset password. Token may be invalid or expired."
+              )
+            );
           }
           set({ isLoading: false });
           return false;

@@ -373,11 +373,7 @@ function createColumns(
       cell: ({ row }) => (
         <Badge
           variant="outline"
-          className={
-            row.original.role === "health_worker"
-              ? "border-blue-200 bg-blue-50 text-blue-700"
-              : "border-gray-200 bg-gray-50 text-gray-700"
-          }
+          className="border-gray-200 bg-gray-50 text-gray-700"
         >
           {row.original.role.replace("_", " ")}
         </Badge>
@@ -572,7 +568,6 @@ export function UsersDataTable({
               <SelectContent>
                 <SelectItem value="all">All Roles</SelectItem>
                 <SelectItem value="user">Users</SelectItem>
-                <SelectItem value="health_worker">Health Workers</SelectItem>
               </SelectContent>
             </Select>
           )}

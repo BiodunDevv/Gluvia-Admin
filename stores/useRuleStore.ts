@@ -1,6 +1,11 @@
 import { create } from "zustand";
 import { api } from "./useAuthStore";
 import { toast } from "sonner";
+import {
+  getErrorMessage,
+  getNestedValue,
+  getResponseData,
+} from "@/lib/api-helpers";
 
 // Types
 interface RuleTemplate {
@@ -47,17 +52,16 @@ export const useRuleStore = create<RuleState>((set, get) => ({
     set({ isLoading: true });
     try {
       const response = await api.get("/rules");
-      const rulesData =
-        response.data.data?.rules ||
-        response.data.rules ||
-        response.data.data ||
-        [];
+      const payload = getResponseData<any>(response);
+      const rulesData = Array.isArray(payload)
+        ? payload
+        : getNestedValue<RuleTemplate[]>(payload, ["rules", "items"], []);
       set({
         rules: Array.isArray(rulesData) ? rulesData : [],
         isLoading: false,
       });
     } catch (error: any) {
-      toast.error("Failed to fetch rules");
+      toast.error(getErrorMessage(error, "Failed to fetch rules"));
       set({ isLoading: false, rules: [] });
     }
   },
@@ -66,11 +70,12 @@ export const useRuleStore = create<RuleState>((set, get) => ({
     set({ isLoading: true });
     try {
       const response = await api.get(`/rules/${slug}`);
-      const rule = response.data.data;
+      const payload = getResponseData<any>(response);
+      const rule = getNestedValue<RuleTemplate | null>(payload, ["rule"], payload);
       set({ currentRule: rule, isLoading: false });
       return rule;
     } catch (error: any) {
-      toast.error("Failed to fetch rule details");
+      toast.error(getErrorMessage(error, "Failed to fetch rule details"));
       set({ isLoading: false });
       return null;
     }
@@ -85,9 +90,7 @@ export const useRuleStore = create<RuleState>((set, get) => ({
       set({ isLoading: false });
       return true;
     } catch (error: any) {
-      const message =
-        error.response?.data?.error?.message || "Failed to create rule";
-      toast.error(message);
+      toast.error(getErrorMessage(error, "Failed to create rule"));
       set({ isLoading: false });
       return false;
     }
@@ -102,9 +105,7 @@ export const useRuleStore = create<RuleState>((set, get) => ({
       set({ isLoading: false });
       return true;
     } catch (error: any) {
-      const message =
-        error.response?.data?.error?.message || "Failed to update rule";
-      toast.error(message);
+      toast.error(getErrorMessage(error, "Failed to update rule"));
       set({ isLoading: false });
       return false;
     }
@@ -119,9 +120,7 @@ export const useRuleStore = create<RuleState>((set, get) => ({
       set({ isLoading: false });
       return true;
     } catch (error: any) {
-      const message =
-        error.response?.data?.error?.message || "Failed to delete rule";
-      toast.error(message);
+      toast.error(getErrorMessage(error, "Failed to delete rule"));
       set({ isLoading: false });
       return false;
     }

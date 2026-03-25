@@ -1,6 +1,21 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  IconBellRinging,
+  IconDatabase,
+  IconDeviceMobile,
+  IconLoader2,
+  IconLogout,
+  IconSearch,
+  IconSettings,
+  IconShieldLock,
+  IconUser,
+  IconUserX,
+  IconX,
+} from "@tabler/icons-react";
+
 import { useAdminStore } from "@/stores/useAdminStore";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { Button } from "@/components/ui/button";
@@ -15,451 +30,780 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import {
-  IconDatabase,
-  IconUserX,
-  IconLoader2,
-  IconUser,
-  IconMail,
-  IconLogout,
-  IconEdit,
-  IconCheck,
-  IconX,
-} from "@tabler/icons-react";
-import { useRouter } from "next/navigation";
+
+type ActionKey =
+  | "profile"
+  | "maintenance"
+  | "broadcast"
+  | "app-settings"
+  | "revoke"
+  | "seed"
+  | "logout";
+
+const SEED_OPTIONS = [
+  { id: "foods", label: "Foods" },
+  { id: "rules", label: "Rules" },
+  { id: "config", label: "Config defaults" },
+  { id: "users", label: "Demo users" },
+] as const;
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { isLoading, runInitialSeed, revokeUserTokens } = useAdminStore();
-  const { user, logout, updateMe, isLoading: authLoading } = useAuthStore();
-  const [revokeUserId, setRevokeUserId] = useState("");
-  const [revokeReason, setRevokeReason] = useState("");
-  const [isEditingProfile, setIsEditingProfile] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  const {
+    maintenance,
+    appSettings,
+    userSearchResults,
+    isSearchingUsers,
+    lastSeedResult,
+    seedPreview,
+    getMaintenanceMode,
+    setMaintenanceMode,
+    getAppSettings,
+    getSeedPreview,
+    setAppSettings,
+    broadcastNotification,
+    revokeUserTokens,
+    searchUsers,
+    runSeed,
+  } = useAdminStore();
+  const { user, logout, updateMe } = useAuthStore();
+
+  const [activeAction, setActiveAction] = useState<ActionKey | null>(null);
+  const [maintenanceEnabled, setMaintenanceEnabled] = useState(false);
+  const [maintenanceText, setMaintenanceText] = useState(
+    "Gluvia AI is temporarily unavailable for maintenance. Please try again later."
+  );
+  const [supportPhone, setSupportPhone] = useState("");
+  const [googleFormLink, setGoogleFormLink] = useState("");
+  const [notificationTitle, setNotificationTitle] = useState("");
+  const [notificationBody, setNotificationBody] = useState("");
   const [profileData, setProfileData] = useState({
     name: "",
     email: "",
     phone: "",
     password: "",
   });
+  const [userSearchQuery, setUserSearchQuery] = useState("");
+  const [selectedUserId, setSelectedUserId] = useState("");
+  const [selectedUserLabel, setSelectedUserLabel] = useState("");
+  const [revokeReason, setRevokeReason] = useState("Security action");
+  const [seedTargets, setSeedTargets] = useState<Array<(typeof SEED_OPTIONS)[number]["id"]>>([
+    "foods",
+    "rules",
+    "config",
+  ]);
+  const [destructiveSeed, setDestructiveSeed] = useState(false);
+  const [includeFoodImages, setIncludeFoodImages] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      setProfileData({
-        name: user.name || "",
-        email: user.email || "",
-        phone: user.phone || "",
-        password: "",
-      });
+    getMaintenanceMode();
+    getAppSettings();
+    getSeedPreview();
+  }, [getAppSettings, getMaintenanceMode, getSeedPreview]);
+
+  useEffect(() => {
+    if (!user) {
+      return;
     }
+
+    setProfileData({
+      name: user.name || "",
+      email: user.email || "",
+      phone: user.phone || "",
+      password: "",
+    });
   }, [user]);
 
-  const handleSeedDatabase = async () => {
-    await runInitialSeed();
-  };
+  useEffect(() => {
+    if (!maintenance) {
+      return;
+    }
 
-  const handleRevokeTokens = async () => {
-    if (!revokeUserId) return;
-    const success = await revokeUserTokens(revokeUserId, revokeReason);
-    if (success) {
-      setRevokeUserId("");
-      setRevokeReason("");
+    setMaintenanceEnabled(maintenance.enabled);
+    setMaintenanceText(
+      maintenance.message ||
+        "Gluvia AI is temporarily unavailable for maintenance. Please try again later."
+    );
+  }, [maintenance]);
+
+  useEffect(() => {
+    if (!appSettings) {
+      return;
+    }
+
+    setSupportPhone(appSettings.supportPhone || "");
+    setGoogleFormLink(appSettings.googleFormLink || "");
+  }, [appSettings]);
+
+  useEffect(() => {
+    if (!userSearchQuery.trim()) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      searchUsers(userSearchQuery);
+    }, 250);
+
+    return () => window.clearTimeout(timer);
+  }, [searchUsers, userSearchQuery]);
+
+  const selectedUser = useMemo(() => {
+    if (!selectedUserId) {
+      return null;
+    }
+
+    return (
+      userSearchResults.find((candidate) => candidate._id === selectedUserId) || {
+        _id: selectedUserId,
+        email: selectedUserLabel.split("(")[1]?.replace(")", "") || "",
+        name: selectedUserLabel.split(" (")[0] || "Selected User",
+        role: "user" as const,
+        phone: "",
+        deleted: false,
+        createdAt: "",
+        updatedAt: "",
+      }
+    );
+  }, [selectedUserId, selectedUserLabel, userSearchResults]);
+
+  const runAction = async (action: ActionKey, callback: () => Promise<void>) => {
+    setActiveAction(action);
+    try {
+      await callback();
+    } finally {
+      setActiveAction(null);
     }
   };
 
-  const handleUpdateProfile = async () => {
-    const updateData: any = {
-      name: profileData.name,
-      email: profileData.email,
-    };
+  const handleProfileSave = () =>
+    runAction("profile", async () => {
+      const payload: Record<string, string | undefined> = {
+        name: profileData.name,
+        email: profileData.email,
+        phone: profileData.phone || undefined,
+      };
 
-    if (profileData.phone) {
-      updateData.phone = profileData.phone;
-    }
+      if (profileData.password) {
+        payload.password = profileData.password;
+      }
 
-    if (profileData.password) {
-      updateData.password = profileData.password;
-    }
+      const success = await updateMe(payload as never);
 
-    const success = await updateMe(updateData);
-    if (success) {
-      setIsEditingProfile(false);
-      setProfileData({ ...profileData, password: "" });
-    }
-  };
+      if (success) {
+        setProfileData((current) => ({ ...current, password: "" }));
+      }
+    });
 
-  const handleCancelEdit = () => {
-    if (user) {
-      setProfileData({
-        name: user.name || "",
-        email: user.email || "",
-        phone: user.phone || "",
-        password: "",
+  const handleLogout = () =>
+    runAction("logout", async () => {
+      await logout();
+      router.push("/auth/login");
+    });
+
+  const handleSaveMaintenance = () =>
+    runAction("maintenance", async () => {
+      await setMaintenanceMode(maintenanceEnabled, maintenanceText);
+    });
+
+  const handleSaveAppSettings = () =>
+    runAction("app-settings", async () => {
+      await setAppSettings(supportPhone, googleFormLink);
+    });
+
+  const handleBroadcast = () =>
+    runAction("broadcast", async () => {
+      if (!notificationTitle.trim() || !notificationBody.trim()) {
+        return;
+      }
+
+      const success = await broadcastNotification(
+        notificationTitle.trim(),
+        notificationBody.trim()
+      );
+
+      if (success) {
+        setNotificationTitle("");
+        setNotificationBody("");
+      }
+    });
+
+  const handleRevoke = () =>
+    runAction("revoke", async () => {
+      if (!selectedUserId) {
+        return;
+      }
+
+      const success = await revokeUserTokens(
+        selectedUserId,
+        revokeReason || "Security action"
+      );
+
+      if (success) {
+        setSelectedUserId("");
+        setSelectedUserLabel("");
+        setUserSearchQuery("");
+        setRevokeReason("Security action");
+      }
+    });
+
+  const handleSeed = () =>
+    runAction("seed", async () => {
+      await runSeed({
+        targets: seedTargets,
+        destructive: destructiveSeed,
+        includeImages: includeFoodImages,
       });
-    }
-    setIsEditingProfile(false);
+    });
+
+  const resetSelectedUser = () => {
+    setSelectedUserId("");
+    setSelectedUserLabel("");
+    setUserSearchQuery("");
   };
 
-  const handleLogout = async () => {
-    await logout();
-    router.push("/auth/login");
+  const toggleSeedTarget = (target: (typeof SEED_OPTIONS)[number]["id"]) => {
+    setSeedTargets((current) =>
+      current.includes(target)
+        ? current.filter((item) => item !== target)
+        : [...current, target]
+    );
   };
 
   return (
     <div className="space-y-6 px-4 lg:px-6">
-      <div>
+      <div className="space-y-1">
         <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
         <p className="text-muted-foreground">
-          Manage system settings and administrative operations
+          Configure admin operations, mobile app behavior, broadcasts, and guarded seed jobs.
         </p>
       </div>
 
-      <div className="grid gap-6">
-        {/* Admin Profile */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Admin Profile</CardTitle>
-                <CardDescription>Your account information</CardDescription>
+      <Tabs defaultValue="profile" className="space-y-6">
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-2 rounded-xl bg-transparent p-0 md:grid-cols-6">
+          <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="mobile-app">Mobile App</TabsTrigger>
+          <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
+          <TabsTrigger value="database-seed">Database Seed</TabsTrigger>
+          <TabsTrigger value="security">Security</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="profile">
+          <Card>
+            <CardHeader>
+              <CardTitle>Admin Profile</CardTitle>
+              <CardDescription>
+                Update your identity details without affecting other controls on this page.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Name</Label>
+                  <Input
+                    id="name"
+                    value={profileData.name}
+                    onChange={(event) =>
+                      setProfileData((current) => ({
+                        ...current,
+                        name: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={profileData.email}
+                    onChange={(event) =>
+                      setProfileData((current) => ({
+                        ...current,
+                        email: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone</Label>
+                  <Input
+                    id="phone"
+                    value={profileData.phone}
+                    onChange={(event) =>
+                      setProfileData((current) => ({
+                        ...current,
+                        phone: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">New Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="Leave blank to keep current password"
+                    value={profileData.password}
+                    onChange={(event) =>
+                      setProfileData((current) => ({
+                        ...current,
+                        password: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
               </div>
-              {!isEditingProfile && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsEditingProfile(true)}
-                >
-                  <IconEdit className="mr-2 h-4 w-4" />
-                  Edit Profile
-                </Button>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {!isEditingProfile ? (
-              <>
-                <div className="flex items-center gap-4">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-                    <IconUser className="h-8 w-8 text-primary" />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-lg font-semibold">{user?.name}</p>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <IconMail className="h-4 w-4" />
-                      {user?.email}
-                    </div>
-                    {user?.phone && (
-                      <p className="text-sm text-muted-foreground">
-                        Phone: {user.phone}
-                      </p>
-                    )}
-                  </div>
+
+              <Separator />
+
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div className="rounded-lg border bg-muted/30 px-4 py-3">
+                  <p className="text-sm font-medium">{user?.name || "Admin User"}</p>
+                  <p className="text-sm text-muted-foreground">{user?.email}</p>
                 </div>
-                <Separator />
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Role</p>
-                    <p className="text-sm text-muted-foreground capitalize">
-                      {user?.role}
-                    </p>
-                  </div>
-                  <Button variant="outline" onClick={handleLogout}>
-                    <IconLogout className="mr-2 h-4 w-4" />
-                    Logout
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Name</Label>
-                    <Input
-                      id="name"
-                      value={profileData.name}
-                      onChange={(e) =>
-                        setProfileData({ ...profileData, name: e.target.value })
-                      }
-                      disabled={authLoading}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={profileData.email}
-                      onChange={(e) =>
-                        setProfileData({
-                          ...profileData,
-                          email: e.target.value,
-                        })
-                      }
-                      disabled={authLoading}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Phone (Optional)</Label>
-                    <Input
-                      id="phone"
-                      value={profileData.phone}
-                      onChange={(e) =>
-                        setProfileData({
-                          ...profileData,
-                          phone: e.target.value,
-                        })
-                      }
-                      disabled={authLoading}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="password">
-                      New Password (Leave blank to keep current)
-                    </Label>
-                    <Input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      value={profileData.password}
-                      onChange={(e) =>
-                        setProfileData({
-                          ...profileData,
-                          password: e.target.value,
-                        })
-                      }
-                      disabled={authLoading}
-                      placeholder="Enter new password"
-                    />
-                    <div className="flex items-center space-x-2 mt-2">
-                      <Checkbox
-                        id="show-password"
-                        checked={showPassword}
-                        onCheckedChange={(checked) =>
-                          setShowPassword(checked as boolean)
-                        }
-                      />
-                      <label
-                        htmlFor="show-password"
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                      >
-                        Show password
-                      </label>
-                    </div>
-                  </div>
-                </div>
-                <Separator />
                 <div className="flex gap-2">
-                  <Button onClick={handleUpdateProfile} disabled={authLoading}>
-                    {authLoading ? (
-                      <>
-                        <IconLoader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <IconCheck className="mr-2 h-4 w-4" />
-                        Save Changes
-                      </>
-                    )}
-                  </Button>
                   <Button
                     variant="outline"
-                    onClick={handleCancelEdit}
-                    disabled={authLoading}
+                    onClick={handleLogout}
+                    loading={activeAction === "logout"}
                   >
-                    <IconX className="mr-2 h-4 w-4" />
-                    Cancel
+                    <IconLogout className="mr-2 size-4" />
+                    Logout
                   </Button>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Database Operations */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Database Operations</CardTitle>
-            <CardDescription>
-              Manage database seeding and initialization
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-900 dark:bg-yellow-950">
-              <div className="flex items-start gap-3">
-                <IconDatabase className="h-5 w-5 text-yellow-600 dark:text-yellow-400 mt-0.5" />
-                <div>
-                  <p className="font-medium text-yellow-800 dark:text-yellow-200">
-                    Database Seeding
-                  </p>
-                  <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
-                    This will populate the database with initial data including
-                    sample foods and rule templates. This operation is safe to
-                    run multiple times.
-                  </p>
-                </div>
-              </div>
-            </div>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" disabled={isLoading}>
-                  {isLoading ? (
-                    <>
-                      <IconLoader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Running...
-                    </>
-                  ) : (
-                    <>
-                      <IconDatabase className="mr-2 h-4 w-4" />
-                      Run Database Seed
-                    </>
-                  )}
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Run Database Seed?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will populate your database with initial data. Existing
-                    data will not be affected. Are you sure you want to
-                    continue?
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleSeedDatabase}>
-                    Continue
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </CardContent>
-        </Card>
-
-        {/* User Token Management */}
-        <Card>
-          <CardHeader>
-            <CardTitle>User Token Management</CardTitle>
-            <CardDescription>Revoke user authentication tokens</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950">
-              <div className="flex items-start gap-3">
-                <IconUserX className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5" />
-                <div>
-                  <p className="font-medium text-red-800 dark:text-red-200">
-                    Revoke User Tokens
-                  </p>
-                  <p className="text-sm text-red-700 dark:text-red-300 mt-1">
-                    This will immediately log out the user from all devices and
-                    invalidate all their active tokens. Use this for security
-                    purposes.
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="userId">User ID</Label>
-                <Input
-                  id="userId"
-                  placeholder="Enter user ID"
-                  value={revokeUserId}
-                  onChange={(e) => setRevokeUserId(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="reason">Reason (optional)</Label>
-                <Textarea
-                  id="reason"
-                  placeholder="Security concern, account compromised, etc."
-                  value={revokeReason}
-                  onChange={(e) => setRevokeReason(e.target.value)}
-                  rows={3}
-                />
-              </div>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
                   <Button
-                    variant="destructive"
-                    disabled={!revokeUserId || isLoading}
+                    onClick={handleProfileSave}
+                    loading={activeAction === "profile"}
                   >
-                    {isLoading ? (
-                      <>
-                        <IconLoader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Revoking...
-                      </>
-                    ) : (
-                      <>
-                        <IconUserX className="mr-2 h-4 w-4" />
-                        Revoke User Tokens
-                      </>
-                    )}
+                    <IconUser className="mr-2 size-4" />
+                    Save Profile
                   </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Revoke User Tokens?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will immediately log out the user from all devices.
-                      This action cannot be undone. Are you sure you want to
-                      continue?
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleRevokeTokens}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
-                      Revoke Tokens
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
-          </CardContent>
-        </Card>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-        {/* System Information */}
-        <Card>
-          <CardHeader>
-            <CardTitle>System Information</CardTitle>
-            <CardDescription>API and environment details</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="flex justify-between py-2">
-              <span className="text-sm font-medium">API URL</span>
-              <span className="text-sm text-muted-foreground font-mono">
-                {process.env.NEXT_PUBLIC_API_URL || "Not configured"}
-              </span>
-            </div>
-            <Separator />
-            <div className="flex justify-between py-2">
-              <span className="text-sm font-medium">Environment</span>
-              <span className="text-sm text-muted-foreground">
-                {process.env.NODE_ENV}
-              </span>
-            </div>
-            <Separator />
-            <div className="flex justify-between py-2">
-              <span className="text-sm font-medium">App Version</span>
-              <span className="text-sm text-muted-foreground">1.0.0</span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+        <TabsContent value="mobile-app">
+          <Card>
+            <CardHeader>
+              <CardTitle>Mobile App Settings</CardTitle>
+              <CardDescription>
+                Manage review links and support details shown inside the mobile settings experience.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="space-y-2">
+                <Label htmlFor="supportPhone">Support Phone</Label>
+                <Input
+                  id="supportPhone"
+                  placeholder="+2348000000000"
+                  value={supportPhone}
+                  onChange={(event) => setSupportPhone(event.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="googleFormLink">Review / Suggestion Form Link</Label>
+                <Input
+                  id="googleFormLink"
+                  placeholder="https://forms.gle/..."
+                  value={googleFormLink}
+                  onChange={(event) => setGoogleFormLink(event.target.value)}
+                />
+              </div>
+
+              <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
+                This link opens inside the mobile app so users can submit reviews or suggestions without leaving the experience completely.
+              </div>
+
+              <Button
+                onClick={handleSaveAppSettings}
+                loading={activeAction === "app-settings"}
+              >
+                <IconDeviceMobile className="mr-2 size-4" />
+                Save Mobile App Settings
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="notifications">
+          <Card>
+            <CardHeader>
+              <CardTitle>Admin Broadcast</CardTitle>
+              <CardDescription>
+                Send one clean announcement to users without triggering duplicate deliveries.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="space-y-2">
+                <Label htmlFor="notificationTitle">Announcement Title</Label>
+                <Input
+                  id="notificationTitle"
+                  value={notificationTitle}
+                  onChange={(event) => setNotificationTitle(event.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="notificationBody">Message</Label>
+                <Textarea
+                  id="notificationBody"
+                  className="min-h-28"
+                  value={notificationBody}
+                  onChange={(event) => setNotificationBody(event.target.value)}
+                />
+              </div>
+              <Button
+                onClick={handleBroadcast}
+                loading={activeAction === "broadcast"}
+              >
+                <IconBellRinging className="mr-2 size-4" />
+                Send Announcement
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="maintenance">
+          <Card>
+            <CardHeader>
+              <CardTitle>Maintenance Mode</CardTitle>
+              <CardDescription>
+                Keep admin access active while user features stay blocked after login.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="flex items-center gap-3 rounded-lg border p-4">
+                <Checkbox
+                  id="maintenanceEnabled"
+                  checked={maintenanceEnabled}
+                  onCheckedChange={(checked) =>
+                    setMaintenanceEnabled(Boolean(checked))
+                  }
+                />
+                <div>
+                  <Label htmlFor="maintenanceEnabled" className="font-medium">
+                    Enable maintenance mode
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Users can still access auth screens, but authenticated app features are blocked.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="maintenanceMessage">Maintenance Message</Label>
+                <Textarea
+                  id="maintenanceMessage"
+                  className="min-h-24"
+                  value={maintenanceText}
+                  onChange={(event) => setMaintenanceText(event.target.value)}
+                />
+              </div>
+
+              <Button
+                onClick={handleSaveMaintenance}
+                loading={activeAction === "maintenance"}
+              >
+                <IconSettings className="mr-2 size-4" />
+                Save Maintenance Settings
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="database-seed">
+          <Card>
+            <CardHeader>
+              <CardTitle>Selective Seed Jobs</CardTitle>
+              <CardDescription>
+                Choose exactly what to seed. Additive mode is the default and destructive reseeding is explicit.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="grid gap-3 md:grid-cols-2">
+                {SEED_OPTIONS.map((option) => (
+                  <label
+                    key={option.id}
+                    className="flex items-start gap-3 rounded-lg border p-4"
+                  >
+                    <Checkbox
+                      checked={seedTargets.includes(option.id)}
+                      onCheckedChange={() => toggleSeedTarget(option.id)}
+                    />
+                    <div>
+                      <p className="font-medium">{option.label}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Include {option.label.toLowerCase()} in this seed run.
+                      </p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+
+              {seedPreview ? (
+                <div className="rounded-xl border bg-muted/20 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="font-medium">Seed preview</p>
+                      <p className="text-sm text-muted-foreground">
+                        Foods use `seedFoods.json`, `seedFoodsTwo.json`, and `seedFoodsThree.json`. Rules use `seedRules.json` and `seedRulesTwo.json`.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    {seedPreview.availableTargets.map((target) => (
+                      <div key={target.id} className="rounded-lg border bg-background p-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="font-medium">{target.label}</p>
+                          <span className="text-xs text-muted-foreground">
+                            {target.currentItems} current
+                          </span>
+                        </div>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {target.description}
+                        </p>
+                        <p className="mt-3 text-sm">
+                          Planned items: <span className="font-medium">{target.plannedItems}</span>
+                        </p>
+                        {target.files.length > 0 ? (
+                          <div className="mt-3 space-y-2 text-xs text-muted-foreground">
+                            {target.files.map((file) => (
+                              <div
+                                key={file.key}
+                                className="flex items-center justify-between rounded-md bg-muted/40 px-3 py-2"
+                              >
+                                <span>{file.label}</span>
+                                <span>{file.items} items</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              <label className="flex items-start gap-3 rounded-lg border border-orange-200 bg-orange-50 p-4">
+                <Checkbox
+                  checked={destructiveSeed}
+                  onCheckedChange={(checked) => setDestructiveSeed(Boolean(checked))}
+                />
+                <div>
+                  <p className="font-medium text-orange-900">Destructive reseed</p>
+                  <p className="text-sm text-orange-700">
+                    This clears existing reference data for selected targets before reseeding.
+                  </p>
+                </div>
+              </label>
+
+              <label className="flex items-start gap-3 rounded-lg border p-4">
+                <Checkbox
+                  checked={includeFoodImages}
+                  onCheckedChange={(checked) => setIncludeFoodImages(Boolean(checked))}
+                />
+                <div>
+                  <p className="font-medium">Fetch food images during food seed</p>
+                  <p className="text-sm text-muted-foreground">
+                    Uses the existing Google image search flow for foods that do not already have an image URL.
+                  </p>
+                </div>
+              </label>
+
+              <Button
+                onClick={handleSeed}
+                loading={activeAction === "seed"}
+                disabled={seedTargets.length === 0}
+              >
+                <IconDatabase className="mr-2 size-4" />
+                Run Seed Job
+              </Button>
+
+              {lastSeedResult && (
+                <div className="rounded-xl border p-4">
+                  <p className="font-medium">
+                    Last seed run: {lastSeedResult.mode}
+                  </p>
+                  <div className="mt-3 space-y-2 text-sm">
+                    {lastSeedResult.results.map((result) => (
+                      <div
+                        key={result.target}
+                        className="flex flex-wrap items-center gap-3 rounded-lg bg-muted/30 px-3 py-2"
+                      >
+                        <span className="font-medium capitalize">{result.target}</span>
+                        <span>Processed: {result.processed}</span>
+                        <span>Created: {result.created}</span>
+                        <span>Updated: {result.updated}</span>
+                        <span>Skipped: {result.skipped}</span>
+                        {result.imageSearch?.enabled ? (
+                          <span>
+                            Images: {result.imageSearch.updated} updated / {result.imageSearch.errors} errors
+                          </span>
+                        ) : null}
+                      </div>
+                    ))}
+                    {lastSeedResult.errors.length > 0 && (
+                      <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-destructive">
+                        {lastSeedResult.errors.map((error) => (
+                          <p key={`${error.target}-${error.message}`}>
+                            {error.target}: {error.message}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="security">
+          <Card>
+            <CardHeader>
+              <CardTitle>Force Logout User</CardTitle>
+              <CardDescription>
+                Search for a user, select them from the dropdown, and revoke every active session professionally.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="space-y-2">
+                <Label htmlFor="userSearch">Search user</Label>
+                <div className="rounded-xl border bg-background">
+                  <div className="relative border-b">
+                    <IconSearch className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      id="userSearch"
+                      className="border-0 bg-transparent pl-9 pr-10 shadow-none focus-visible:ring-0"
+                      placeholder="Search by name, email, or phone"
+                      value={selectedUserLabel || userSearchQuery}
+                      onChange={(event) => {
+                        setSelectedUserId("");
+                        setSelectedUserLabel("");
+                        setUserSearchQuery(event.target.value);
+                      }}
+                    />
+                    {isSearchingUsers ? (
+                      <IconLoader2 className="absolute right-3 top-1/2 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+                    ) : (selectedUserId || userSearchQuery) ? (
+                      <button
+                        type="button"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground hover:bg-muted"
+                        onClick={resetSelectedUser}
+                      >
+                        <IconX className="size-4" />
+                      </button>
+                    ) : null}
+                  </div>
+
+                  {!selectedUserId && userSearchQuery.trim() ? (
+                    <div className="max-h-72 overflow-y-auto p-2">
+                      {userSearchResults.length === 0 && !isSearchingUsers ? (
+                        <p className="rounded-lg px-3 py-3 text-sm text-muted-foreground">
+                          No users found for this search yet.
+                        </p>
+                      ) : (
+                        userSearchResults.map((candidate) => (
+                          <button
+                            key={candidate._id}
+                            type="button"
+                            className="flex w-full items-start justify-between rounded-lg px-3 py-3 text-left hover:bg-muted/50"
+                            onClick={() => {
+                              setSelectedUserId(candidate._id);
+                              setSelectedUserLabel(
+                                `${candidate.name || "Unnamed User"} (${candidate.email})`
+                              );
+                              setUserSearchQuery("");
+                            }}
+                          >
+                            <div>
+                              <p className="font-medium">
+                                {candidate.name || "Unnamed User"}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                {candidate.email}
+                              </p>
+                              {candidate.phone ? (
+                                <p className="text-xs text-muted-foreground">
+                                  {candidate.phone}
+                                </p>
+                              ) : null}
+                            </div>
+                            <span className="rounded-full bg-muted px-2 py-1 text-xs capitalize text-muted-foreground">
+                              {candidate.role.replace("_", " ")}
+                            </span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Select the user you want to force out of every active session.
+                </p>
+              </div>
+
+              {selectedUser && (
+                <div className="rounded-xl border bg-muted/30 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <div className="rounded-xl bg-primary/10 p-2 text-primary">
+                        <IconShieldLock className="size-4" />
+                      </div>
+                      <div>
+                        <p className="font-medium">
+                          {selectedUser.name || "Unnamed User"}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {selectedUser.email}
+                        </p>
+                        <p className="mt-1 text-xs capitalize text-muted-foreground">
+                          {selectedUser.role.replace("_", " ")}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={resetSelectedUser}
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                  {selectedUser.phone && (
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      {selectedUser.phone}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label htmlFor="revokeReason">Reason</Label>
+                <Textarea
+                  id="revokeReason"
+                  className="min-h-20"
+                  value={revokeReason}
+                  onChange={(event) => setRevokeReason(event.target.value)}
+                />
+              </div>
+
+              <Button
+                variant="destructive"
+                onClick={handleRevoke}
+                loading={activeAction === "revoke"}
+                disabled={!selectedUserId}
+              >
+                <IconUserX className="mr-2 size-4" />
+                Force Logout User
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

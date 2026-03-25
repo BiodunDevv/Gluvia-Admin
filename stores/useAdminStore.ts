@@ -1,6 +1,12 @@
 import { create } from "zustand";
 import { api } from "./useAuthStore";
 import { toast } from "sonner";
+import {
+  getErrorMessage,
+  getNestedValue,
+  getResponseData,
+  getResponseMessage,
+} from "@/lib/api-helpers";
 
 export interface Admin {
   _id: string;
@@ -36,7 +42,7 @@ export interface User {
   _id: string;
   email: string;
   name: string;
-  role: "user" | "health_worker";
+  role: "user";
   phone?: string;
   deleted: boolean;
   createdAt: string;
@@ -48,14 +54,14 @@ interface CreateUserData {
   password: string;
   name: string;
   phone?: string;
-  role?: "user" | "health_worker";
+  role?: "user";
 }
 
 interface UpdateUserData {
   name?: string;
   email?: string;
   phone?: string;
-  role?: "user" | "health_worker";
+  role?: "user";
 }
 
 interface UserStats {
@@ -64,18 +70,87 @@ interface UserStats {
   deactivated: number;
 }
 
+interface MaintenanceSettings {
+  enabled: boolean;
+  message: string;
+}
+
+interface AppSettings {
+  supportPhone: string;
+  googleFormLink: string;
+}
+
+export interface SeedRequest {
+  targets: Array<"foods" | "rules" | "config" | "users">;
+  destructive?: boolean;
+  includeImages?: boolean;
+}
+
+export interface SeedPreview {
+  defaults: {
+    targets: Array<"foods" | "rules" | "config">;
+    mode: "additive";
+    imageSource: string;
+  };
+  availableTargets: Array<{
+    id: "foods" | "rules" | "config" | "users";
+    label: string;
+    description: string;
+    plannedItems: number;
+    currentItems: number;
+    files: Array<{
+      key: string;
+      label: string;
+      items: number;
+    }>;
+  }>;
+}
+
+export interface SeedResult {
+  targets: string[];
+  mode: "additive" | "destructive";
+  results: Array<{
+    target: string;
+    processed: number;
+    created: number;
+    updated: number;
+    skipped: number;
+    imageSearch?: {
+      enabled: boolean;
+      source: string;
+      updated: number;
+      skipped: number;
+      errors: number;
+    };
+  }>;
+  errors: Array<{
+    target: string;
+    message: string;
+  }>;
+  success: boolean;
+}
+
 interface AdminState {
   isLoading: boolean;
+  isSearchingUsers: boolean;
   admins: Admin[];
   selectedAdmin: Admin | null;
   stats: AdminStats | null;
   users: User[];
   selectedUser: User | null;
   userStats: UserStats | null;
+  maintenance: MaintenanceSettings | null;
+  appSettings: AppSettings | null;
+  userSearchResults: User[];
+  lastSeedResult: SeedResult | null;
+  seedPreview: SeedPreview | null;
 
   // Admin Actions
   runInitialSeed: () => Promise<boolean>;
+  runSeed: (data: SeedRequest) => Promise<SeedResult | null>;
+  getSeedPreview: () => Promise<SeedPreview | null>;
   revokeUserTokens: (userId: string, reason?: string) => Promise<boolean>;
+  searchUsers: (query: string) => Promise<User[]>;
   createAdmin: (data: CreateAdminData) => Promise<boolean>;
   listAdmins: () => Promise<boolean>;
   getAdminById: (adminId: string) => Promise<boolean>;
@@ -94,30 +169,75 @@ interface AdminState {
   activateUser: (userId: string) => Promise<boolean>;
   resetUserPassword: (userId: string) => Promise<string | null>;
   getUserStats: () => Promise<boolean>;
+  getMaintenanceMode: () => Promise<boolean>;
+  setMaintenanceMode: (
+    enabled: boolean,
+    message?: string
+  ) => Promise<boolean>;
+  getAppSettings: () => Promise<boolean>;
+  setAppSettings: (
+    supportPhone: string,
+    googleFormLink: string
+  ) => Promise<boolean>;
+  broadcastNotification: (title: string, body: string) => Promise<boolean>;
 }
 
 export const useAdminStore = create<AdminState>((set) => ({
   isLoading: false,
+  isSearchingUsers: false,
   admins: [],
   selectedAdmin: null,
   stats: null,
   users: [],
   selectedUser: null,
   userStats: null,
+  maintenance: null,
+  appSettings: null,
+  userSearchResults: [],
+  lastSeedResult: null,
+  seedPreview: null,
 
   runInitialSeed: async () => {
     set({ isLoading: true });
     try {
       const response = await api.post("/admin/seed-initial");
-      toast.success(response.data.message || "Database seeded successfully!");
+      toast.success(getResponseMessage(response, "Database seeded successfully!"));
       set({ isLoading: false });
       return true;
     } catch (error: any) {
-      const message =
-        error.response?.data?.error?.message || "Failed to run seed";
-      toast.error(message);
+      toast.error(getErrorMessage(error, "Failed to run seed"));
       set({ isLoading: false });
       return false;
+    }
+  },
+
+  runSeed: async (data: SeedRequest) => {
+    set({ isLoading: true });
+    try {
+      const response = await api.post("/admin/seed", data);
+      const payload = getResponseData<SeedResult | null>(response);
+      const result = payload;
+      set({ isLoading: false, lastSeedResult: result });
+      toast.success(getResponseMessage(response, "Seed completed"));
+      return result;
+    } catch (error: any) {
+      toast.error(getErrorMessage(error, "Failed to run seed job"));
+      set({ isLoading: false });
+      return null;
+    }
+  },
+
+  getSeedPreview: async () => {
+    set({ isLoading: true });
+    try {
+      const response = await api.get("/admin/seed/preview");
+      const payload = getResponseData<SeedPreview | null>(response);
+      set({ isLoading: false, seedPreview: payload });
+      return payload;
+    } catch (error: any) {
+      toast.error(getErrorMessage(error, "Failed to load seed preview"));
+      set({ isLoading: false });
+      return null;
     }
   },
 
@@ -129,11 +249,32 @@ export const useAdminStore = create<AdminState>((set) => ({
       set({ isLoading: false });
       return true;
     } catch (error: any) {
-      const message =
-        error.response?.data?.error?.message || "Failed to revoke tokens";
-      toast.error(message);
+      toast.error(getErrorMessage(error, "Failed to revoke tokens"));
       set({ isLoading: false });
       return false;
+    }
+  },
+
+  searchUsers: async (query: string) => {
+    const trimmed = query.trim();
+
+    if (!trimmed) {
+      set({ userSearchResults: [], isSearchingUsers: false });
+      return [];
+    }
+
+    set({ isSearchingUsers: true });
+    try {
+      const response = await api.get("/admin/users/search", {
+        params: { q: trimmed, limit: 8 },
+      });
+      const users = getResponseData<User[]>(response) || [];
+      set({ userSearchResults: users, isSearchingUsers: false });
+      return users;
+    } catch (error: any) {
+      toast.error(getErrorMessage(error, "Failed to search users"));
+      set({ userSearchResults: [], isSearchingUsers: false });
+      return [];
     }
   },
 
@@ -141,7 +282,7 @@ export const useAdminStore = create<AdminState>((set) => ({
     set({ isLoading: true });
     try {
       const response = await api.post("/admin/admins", data);
-      const message = response.data.message || "Admin created successfully";
+      const message = getResponseMessage(response, "Admin created successfully");
       toast.success(message);
       set({ isLoading: false });
       return true;
@@ -152,9 +293,7 @@ export const useAdminStore = create<AdminState>((set) => ({
           toast.error(`${detail.field}: ${detail.message}`);
         });
       } else {
-        const message =
-          error.response?.data?.error?.message || "Failed to create admin";
-        toast.error(message);
+        toast.error(getErrorMessage(error, "Failed to create admin"));
       }
       set({ isLoading: false });
       return false;
@@ -165,13 +304,12 @@ export const useAdminStore = create<AdminState>((set) => ({
     set({ isLoading: true });
     try {
       const response = await api.get("/admin/admins");
-      const admins = response.data.data.admins || [];
+      const payload = getResponseData<any>(response);
+      const admins = getNestedValue<Admin[]>(payload, ["admins", "items"], []);
       set({ admins, isLoading: false });
       return true;
     } catch (error: any) {
-      const message =
-        error.response?.data?.error?.message || "Failed to fetch admins";
-      toast.error(message);
+      toast.error(getErrorMessage(error, "Failed to fetch admins"));
       set({ isLoading: false });
       return false;
     }
@@ -181,13 +319,12 @@ export const useAdminStore = create<AdminState>((set) => ({
     set({ isLoading: true });
     try {
       const response = await api.get(`/admin/admins/${adminId}`);
-      const admin = response.data.data.admin;
+      const payload = getResponseData<any>(response);
+      const admin = getNestedValue<Admin | null>(payload, ["admin"], payload);
       set({ selectedAdmin: admin, isLoading: false });
       return true;
     } catch (error: any) {
-      const message =
-        error.response?.data?.error?.message || "Failed to fetch admin details";
-      toast.error(message);
+      toast.error(getErrorMessage(error, "Failed to fetch admin details"));
       set({ isLoading: false });
       return false;
     }
@@ -197,7 +334,7 @@ export const useAdminStore = create<AdminState>((set) => ({
     set({ isLoading: true });
     try {
       const response = await api.put(`/admin/admins/${adminId}`, data);
-      const message = response.data.message || "Admin updated successfully";
+      const message = getResponseMessage(response, "Admin updated successfully");
       toast.success(message);
       set({ isLoading: false });
       return true;
@@ -208,9 +345,7 @@ export const useAdminStore = create<AdminState>((set) => ({
           toast.error(`${detail.field}: ${detail.message}`);
         });
       } else {
-        const message =
-          error.response?.data?.error?.message || "Failed to update admin";
-        toast.error(message);
+        toast.error(getErrorMessage(error, "Failed to update admin"));
       }
       set({ isLoading: false });
       return false;
@@ -221,14 +356,15 @@ export const useAdminStore = create<AdminState>((set) => ({
     set({ isLoading: true });
     try {
       const response = await api.post(`/admin/admins/${adminId}/deactivate`);
-      const message = response.data.message || "Admin deactivated successfully";
+      const message = getResponseMessage(
+        response,
+        "Admin deactivated successfully"
+      );
       toast.success(message);
       set({ isLoading: false });
       return true;
     } catch (error: any) {
-      const message =
-        error.response?.data?.error?.message || "Failed to deactivate admin";
-      toast.error(message);
+      toast.error(getErrorMessage(error, "Failed to deactivate admin"));
       set({ isLoading: false });
       return false;
     }
@@ -238,14 +374,15 @@ export const useAdminStore = create<AdminState>((set) => ({
     set({ isLoading: true });
     try {
       const response = await api.post(`/admin/admins/${adminId}/activate`);
-      const message = response.data.message || "Admin reactivated successfully";
+      const message = getResponseMessage(
+        response,
+        "Admin reactivated successfully"
+      );
       toast.success(message);
       set({ isLoading: false });
       return true;
     } catch (error: any) {
-      const message =
-        error.response?.data?.error?.message || "Failed to reactivate admin";
-      toast.error(message);
+      toast.error(getErrorMessage(error, "Failed to reactivate admin"));
       set({ isLoading: false });
       return false;
     }
@@ -257,16 +394,21 @@ export const useAdminStore = create<AdminState>((set) => ({
       const response = await api.post(
         `/admin/admins/${adminId}/reset-password`
       );
-      const message = response.data.message || "Password reset token generated";
-      const resetToken = response.data.data.resetToken;
+      const payload = getResponseData<any>(response);
+      const message = getResponseMessage(
+        response,
+        "Password reset token generated"
+      );
+      const resetToken = getNestedValue<string | null>(
+        payload,
+        ["resetToken"],
+        null
+      );
       toast.success(message);
       set({ isLoading: false });
       return resetToken;
     } catch (error: any) {
-      const message =
-        error.response?.data?.error?.message ||
-        "Failed to generate reset token";
-      toast.error(message);
+      toast.error(getErrorMessage(error, "Failed to generate reset token"));
       set({ isLoading: false });
       return null;
     }
@@ -276,13 +418,12 @@ export const useAdminStore = create<AdminState>((set) => ({
     set({ isLoading: true });
     try {
       const response = await api.get("/admin/admins/stats");
-      const stats = response.data.data.stats;
+      const payload = getResponseData<any>(response);
+      const stats = getNestedValue<AdminStats | null>(payload, ["stats"], payload);
       set({ stats, isLoading: false });
       return true;
     } catch (error: any) {
-      const message =
-        error.response?.data?.error?.message || "Failed to fetch admin stats";
-      toast.error(message);
+      toast.error(getErrorMessage(error, "Failed to fetch admin stats"));
       set({ isLoading: false });
       return false;
     }
@@ -293,13 +434,12 @@ export const useAdminStore = create<AdminState>((set) => ({
     set({ isLoading: true });
     try {
       const response = await api.get("/admin/users");
-      const users = response.data.data.users || [];
+      const payload = getResponseData<any>(response);
+      const users = getNestedValue<User[]>(payload, ["users", "items"], []);
       set({ users, isLoading: false });
       return true;
     } catch (error: any) {
-      const message =
-        error.response?.data?.error?.message || "Failed to fetch users";
-      toast.error(message);
+      toast.error(getErrorMessage(error, "Failed to fetch users"));
       set({ isLoading: false });
       return false;
     }
@@ -309,13 +449,12 @@ export const useAdminStore = create<AdminState>((set) => ({
     set({ isLoading: true });
     try {
       const response = await api.get(`/admin/users/${userId}`);
-      const user = response.data.data.user;
+      const payload = getResponseData<any>(response);
+      const user = getNestedValue<User | null>(payload, ["user"], payload);
       set({ selectedUser: user, isLoading: false });
       return true;
     } catch (error: any) {
-      const message =
-        error.response?.data?.error?.message || "Failed to fetch user details";
-      toast.error(message);
+      toast.error(getErrorMessage(error, "Failed to fetch user details"));
       set({ isLoading: false });
       return false;
     }
@@ -325,7 +464,7 @@ export const useAdminStore = create<AdminState>((set) => ({
     set({ isLoading: true });
     try {
       const response = await api.post("/admin/users", data);
-      const message = response.data.message || "User created successfully";
+      const message = getResponseMessage(response, "User created successfully");
       toast.success(message);
       set({ isLoading: false });
       return true;
@@ -336,9 +475,7 @@ export const useAdminStore = create<AdminState>((set) => ({
           toast.error(`${detail.field}: ${detail.message}`);
         });
       } else {
-        const message =
-          error.response?.data?.error?.message || "Failed to create user";
-        toast.error(message);
+        toast.error(getErrorMessage(error, "Failed to create user"));
       }
       set({ isLoading: false });
       return false;
@@ -349,7 +486,7 @@ export const useAdminStore = create<AdminState>((set) => ({
     set({ isLoading: true });
     try {
       const response = await api.put(`/admin/users/${userId}`, data);
-      const message = response.data.message || "User updated successfully";
+      const message = getResponseMessage(response, "User updated successfully");
       toast.success(message);
       set({ isLoading: false });
       return true;
@@ -360,9 +497,7 @@ export const useAdminStore = create<AdminState>((set) => ({
           toast.error(`${detail.field}: ${detail.message}`);
         });
       } else {
-        const message =
-          error.response?.data?.error?.message || "Failed to update user";
-        toast.error(message);
+        toast.error(getErrorMessage(error, "Failed to update user"));
       }
       set({ isLoading: false });
       return false;
@@ -373,14 +508,15 @@ export const useAdminStore = create<AdminState>((set) => ({
     set({ isLoading: true });
     try {
       const response = await api.post(`/admin/users/${userId}/deactivate`);
-      const message = response.data.message || "User deactivated successfully";
+      const message = getResponseMessage(
+        response,
+        "User deactivated successfully"
+      );
       toast.success(message);
       set({ isLoading: false });
       return true;
     } catch (error: any) {
-      const message =
-        error.response?.data?.error?.message || "Failed to deactivate user";
-      toast.error(message);
+      toast.error(getErrorMessage(error, "Failed to deactivate user"));
       set({ isLoading: false });
       return false;
     }
@@ -390,14 +526,15 @@ export const useAdminStore = create<AdminState>((set) => ({
     set({ isLoading: true });
     try {
       const response = await api.post(`/admin/users/${userId}/activate`);
-      const message = response.data.message || "User reactivated successfully";
+      const message = getResponseMessage(
+        response,
+        "User reactivated successfully"
+      );
       toast.success(message);
       set({ isLoading: false });
       return true;
     } catch (error: any) {
-      const message =
-        error.response?.data?.error?.message || "Failed to reactivate user";
-      toast.error(message);
+      toast.error(getErrorMessage(error, "Failed to reactivate user"));
       set({ isLoading: false });
       return false;
     }
@@ -407,16 +544,21 @@ export const useAdminStore = create<AdminState>((set) => ({
     set({ isLoading: true });
     try {
       const response = await api.post(`/admin/users/${userId}/reset-password`);
-      const message = response.data.message || "Password reset token generated";
-      const resetToken = response.data.data.resetToken;
+      const payload = getResponseData<any>(response);
+      const message = getResponseMessage(
+        response,
+        "Password reset token generated"
+      );
+      const resetToken = getNestedValue<string | null>(
+        payload,
+        ["resetToken"],
+        null
+      );
       toast.success(message);
       set({ isLoading: false });
       return resetToken;
     } catch (error: any) {
-      const message =
-        error.response?.data?.error?.message ||
-        "Failed to generate reset token";
-      toast.error(message);
+      toast.error(getErrorMessage(error, "Failed to generate reset token"));
       set({ isLoading: false });
       return null;
     }
@@ -426,13 +568,106 @@ export const useAdminStore = create<AdminState>((set) => ({
     set({ isLoading: true });
     try {
       const response = await api.get("/admin/users/stats");
-      const userStats = response.data.data.stats;
+      const payload = getResponseData<any>(response);
+      const userStats = getNestedValue<UserStats | null>(
+        payload,
+        ["stats"],
+        payload
+      );
       set({ userStats, isLoading: false });
       return true;
     } catch (error: any) {
-      const message =
-        error.response?.data?.error?.message || "Failed to fetch user stats";
-      toast.error(message);
+      toast.error(getErrorMessage(error, "Failed to fetch user stats"));
+      set({ isLoading: false });
+      return false;
+    }
+  },
+
+  getMaintenanceMode: async () => {
+    set({ isLoading: true });
+    try {
+      const response = await api.get("/admin/maintenance-mode");
+      set({
+        maintenance: getResponseData<MaintenanceSettings | null>(response),
+        isLoading: false,
+      });
+      return true;
+    } catch (error: any) {
+      toast.error(
+        getErrorMessage(error, "Failed to fetch maintenance mode")
+      );
+      set({ isLoading: false });
+      return false;
+    }
+  },
+
+  setMaintenanceMode: async (enabled: boolean, message?: string) => {
+    set({ isLoading: true });
+    try {
+      const response = await api.post("/admin/maintenance-mode", {
+        enabled,
+        message,
+      });
+      set({
+        maintenance: getResponseData<MaintenanceSettings | null>(response),
+        isLoading: false,
+      });
+      toast.success(getResponseMessage(response, "Maintenance mode updated"));
+      return true;
+    } catch (error: any) {
+      toast.error(
+        getErrorMessage(error, "Failed to update maintenance mode")
+      );
+      set({ isLoading: false });
+      return false;
+    }
+  },
+
+  getAppSettings: async () => {
+    set({ isLoading: true });
+    try {
+      const response = await api.get("/admin/app-settings");
+      set({
+        appSettings: getResponseData<AppSettings | null>(response),
+        isLoading: false,
+      });
+      return true;
+    } catch (error: any) {
+      toast.error(getErrorMessage(error, "Failed to fetch app settings"));
+      set({ isLoading: false });
+      return false;
+    }
+  },
+
+  setAppSettings: async (supportPhone: string, googleFormLink: string) => {
+    set({ isLoading: true });
+    try {
+      const response = await api.post("/admin/app-settings", {
+        supportPhone,
+        googleFormLink,
+      });
+      set({
+        appSettings: getResponseData<AppSettings | null>(response),
+        isLoading: false,
+      });
+      toast.success(getResponseMessage(response, "App settings updated"));
+      return true;
+    } catch (error: any) {
+      toast.error(getErrorMessage(error, "Failed to update app settings"));
+      set({ isLoading: false });
+      return false;
+    }
+  },
+
+  broadcastNotification: async (title: string, body: string) => {
+    set({ isLoading: true });
+    try {
+      await api.post("/admin/notifications/broadcast", { title, body });
+      toast.success("Notification sent successfully");
+      set({ isLoading: false });
+      return true;
+    } catch (error: any) {
+      toast.error(getErrorMessage(error, "Failed to send notification"));
       set({ isLoading: false });
       return false;
     }

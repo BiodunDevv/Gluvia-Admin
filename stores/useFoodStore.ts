@@ -1,6 +1,11 @@
 import { create } from "zustand";
 import { api } from "./useAuthStore";
 import { toast } from "sonner";
+import {
+  getErrorMessage,
+  getNestedValue,
+  getResponseData,
+} from "@/lib/api-helpers";
 
 // Types
 export interface Food {
@@ -100,14 +105,18 @@ export const useFoodStore = create<FoodState>((set, get) => ({
       });
 
       const response = await api.get(`/foods?${params}`);
+      const payload = getResponseData<any>(response);
+      const foods = Array.isArray(payload)
+        ? payload
+        : getNestedValue<Food[]>(payload, ["foods", "items"], []);
 
       set({
-        foods: response.data.data,
-        pagination: response.data.pagination,
+        foods,
+        pagination: response.data.meta || response.data.pagination,
         isLoading: false,
       });
     } catch (error: any) {
-      toast.error("Failed to fetch foods");
+      toast.error(getErrorMessage(error, "Failed to fetch foods"));
       set({ isLoading: false });
     }
   },
@@ -115,11 +124,12 @@ export const useFoodStore = create<FoodState>((set, get) => ({
   getFoodById: async (id: string) => {
     try {
       const response = await api.get(`/foods/${id}`);
-      const food = response.data.data;
+      const payload = getResponseData<any>(response);
+      const food = getNestedValue<Food | null>(payload, ["food"], payload);
       set({ currentFood: food });
       return food;
     } catch (error: any) {
-      toast.error("Failed to fetch food details");
+      toast.error(getErrorMessage(error, "Failed to fetch food details"));
       return null;
     }
   },
@@ -136,7 +146,7 @@ export const useFoodStore = create<FoodState>((set, get) => ({
       return true;
     } catch (error: any) {
       const message =
-        error.response?.data?.error?.message || "Failed to create food";
+        getErrorMessage(error, "Failed to create food");
       toast.error(message);
       set({ isLoading: false });
       return false;
@@ -155,7 +165,7 @@ export const useFoodStore = create<FoodState>((set, get) => ({
       return true;
     } catch (error: any) {
       const message =
-        error.response?.data?.error?.message || "Failed to update food";
+        getErrorMessage(error, "Failed to update food");
       toast.error(message);
       set({ isLoading: false });
       return false;
@@ -174,7 +184,7 @@ export const useFoodStore = create<FoodState>((set, get) => ({
       return true;
     } catch (error: any) {
       const message =
-        error.response?.data?.error?.message || "Failed to delete food";
+        getErrorMessage(error, "Failed to delete food");
       toast.error(message);
       set({ isLoading: false });
       return false;
@@ -186,7 +196,7 @@ export const useFoodStore = create<FoodState>((set, get) => ({
     try {
       const response = await api.post("/foods/batch", { foods });
 
-      const stats = response.data.stats;
+      const stats = response.data.data || response.data.stats;
 
       // Check if there are any errors
       if (stats.results && stats.results.length > 0) {
@@ -222,9 +232,7 @@ export const useFoodStore = create<FoodState>((set, get) => ({
       set({ isLoading: false });
       return stats.successCount > 0 ? stats : false;
     } catch (error: any) {
-      const message =
-        error.response?.data?.error?.message || "Failed to upload foods";
-      toast.error(message);
+      toast.error(getErrorMessage(error, "Failed to upload foods"));
       set({ isLoading: false });
       return false;
     }
@@ -239,9 +247,7 @@ export const useFoodStore = create<FoodState>((set, get) => ({
 
       return response.data.data;
     } catch (error: any) {
-      const message =
-        error.response?.data?.error?.message || "Failed to search for image";
-      toast.error(message);
+      toast.error(getErrorMessage(error, "Failed to search for image"));
       return null;
     }
   },

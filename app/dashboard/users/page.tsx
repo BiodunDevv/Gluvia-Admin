@@ -50,13 +50,13 @@ export default function UsersPage() {
     password: "",
     name: "",
     phone: "",
-    role: "user" as "user" | "health_worker",
+    role: "user" as "user",
   });
   const [editFormData, setEditFormData] = useState({
     email: "",
     name: "",
     phone: "",
-    role: "user" as "user" | "health_worker",
+    role: "user" as "user",
   });
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [actionType, setActionType] = useState<
@@ -158,7 +158,7 @@ export default function UsersPage() {
             User Management
           </h1>
           <p className="text-sm text-muted-foreground">
-            Manage regular users and health workers
+            Manage regular users
           </p>
         </div>
         <Button

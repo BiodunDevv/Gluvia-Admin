@@ -1,14 +1,11 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import Link from "next/link";
 import {
   IconDashboard,
-  IconDatabase,
-  IconDroplet,
-  IconListDetails,
   IconSettings,
-  IconFileText,
   IconApple,
   IconRuler,
   IconClipboardList,
@@ -120,8 +117,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               className="data-[slot=sidebar-menu-button]:p-1.5!"
             >
               <Link href="/dashboard">
-                <IconDroplet className="size-5!" />
-                <span className="text-base font-semibold">Gluvia</span>
+                <Image
+                  src="/branding/logo.png"
+                  alt="Gluvia logo"
+                  width={24}
+                  height={24}
+                  className="rounded-sm object-contain"
+                />
+                <span className="text-base font-semibold">Gluvia AI</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
