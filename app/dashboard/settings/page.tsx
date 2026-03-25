@@ -272,23 +272,37 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="space-y-6 px-4 lg:px-6">
+    <div className="mx-auto w-full max-w-7xl space-y-6 px-3 sm:px-4 lg:px-6">
       <div className="space-y-1">
-        <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Settings</h1>
         <p className="text-muted-foreground">
           Configure admin operations, mobile app behavior, broadcasts, and guarded seed jobs.
         </p>
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid h-auto w-full grid-cols-2 gap-2 rounded-xl bg-transparent p-0 md:grid-cols-6">
-          <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="mobile-app">Mobile App</TabsTrigger>
-          <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
-          <TabsTrigger value="database-seed">Database Seed</TabsTrigger>
-          <TabsTrigger value="security">Security</TabsTrigger>
-        </TabsList>
+        <div className="-mx-3 overflow-x-auto px-3 pb-1 sm:mx-0 sm:px-0">
+          <TabsList className="inline-flex h-auto min-w-max gap-2 rounded-xl bg-transparent p-0 sm:flex sm:w-full sm:min-w-0 sm:flex-wrap">
+            <TabsTrigger value="profile" className="h-10 min-w-[136px] px-4 text-sm sm:min-w-0">
+              Profile
+            </TabsTrigger>
+            <TabsTrigger value="mobile-app" className="h-10 min-w-[136px] px-4 text-sm sm:min-w-0">
+              Mobile App
+            </TabsTrigger>
+            <TabsTrigger value="notifications" className="h-10 min-w-[136px] px-4 text-sm sm:min-w-0">
+              Notifications
+            </TabsTrigger>
+            <TabsTrigger value="maintenance" className="h-10 min-w-[136px] px-4 text-sm sm:min-w-0">
+              Maintenance
+            </TabsTrigger>
+            <TabsTrigger value="database-seed" className="h-10 min-w-[156px] px-4 text-sm sm:min-w-0">
+              Database Seed
+            </TabsTrigger>
+            <TabsTrigger value="security" className="h-10 min-w-[136px] px-4 text-sm sm:min-w-0">
+              Security
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="profile">
           <Card>
@@ -359,16 +373,17 @@ export default function SettingsPage() {
 
               <Separator />
 
-              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div className="rounded-lg border bg-muted/30 px-4 py-3">
                   <p className="text-sm font-medium">{user?.name || "Admin User"}</p>
                   <p className="text-sm text-muted-foreground">{user?.email}</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row">
                   <Button
                     variant="outline"
                     onClick={handleLogout}
                     loading={activeAction === "logout"}
+                    className="w-full sm:w-auto"
                   >
                     <IconLogout className="mr-2 size-4" />
                     Logout
@@ -376,6 +391,7 @@ export default function SettingsPage() {
                   <Button
                     onClick={handleProfileSave}
                     loading={activeAction === "profile"}
+                    className="w-full sm:w-auto"
                   >
                     <IconUser className="mr-2 size-4" />
                     Save Profile
@@ -421,6 +437,7 @@ export default function SettingsPage() {
               <Button
                 onClick={handleSaveAppSettings}
                 loading={activeAction === "app-settings"}
+                className="w-full sm:w-auto"
               >
                 <IconDeviceMobile className="mr-2 size-4" />
                 Save Mobile App Settings
@@ -458,6 +475,7 @@ export default function SettingsPage() {
               <Button
                 onClick={handleBroadcast}
                 loading={activeAction === "broadcast"}
+                className="w-full sm:w-auto"
               >
                 <IconBellRinging className="mr-2 size-4" />
                 Send Announcement
@@ -475,7 +493,7 @@ export default function SettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
-              <div className="flex items-center gap-3 rounded-lg border p-4">
+              <div className="flex items-start gap-3 rounded-lg border p-4">
                 <Checkbox
                   id="maintenanceEnabled"
                   checked={maintenanceEnabled}
@@ -506,6 +524,7 @@ export default function SettingsPage() {
               <Button
                 onClick={handleSaveMaintenance}
                 loading={activeAction === "maintenance"}
+                className="w-full sm:w-auto"
               >
                 <IconSettings className="mr-2 size-4" />
                 Save Maintenance Settings
@@ -545,7 +564,7 @@ export default function SettingsPage() {
 
               {seedPreview ? (
                 <div className="rounded-xl border bg-muted/20 p-4">
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <p className="font-medium">Seed preview</p>
                       <p className="text-sm text-muted-foreground">
@@ -573,7 +592,7 @@ export default function SettingsPage() {
                             {target.files.map((file) => (
                               <div
                                 key={file.key}
-                                className="flex items-center justify-between rounded-md bg-muted/40 px-3 py-2"
+                                className="flex flex-col gap-1 rounded-md bg-muted/40 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
                               >
                                 <span>{file.label}</span>
                                 <span>{file.items} items</span>
@@ -617,6 +636,7 @@ export default function SettingsPage() {
                 onClick={handleSeed}
                 loading={activeAction === "seed"}
                 disabled={seedTargets.length === 0}
+                className="w-full sm:w-auto"
               >
                 <IconDatabase className="mr-2 size-4" />
                 Run Seed Job
@@ -631,7 +651,7 @@ export default function SettingsPage() {
                     {lastSeedResult.results.map((result) => (
                       <div
                         key={result.target}
-                        className="flex flex-wrap items-center gap-3 rounded-lg bg-muted/30 px-3 py-2"
+                        className="flex flex-col gap-2 rounded-lg bg-muted/30 px-3 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3"
                       >
                         <span className="font-medium capitalize">{result.target}</span>
                         <span>Processed: {result.processed}</span>
@@ -710,7 +730,7 @@ export default function SettingsPage() {
                           <button
                             key={candidate._id}
                             type="button"
-                            className="flex w-full items-start justify-between rounded-lg px-3 py-3 text-left hover:bg-muted/50"
+                            className="flex w-full flex-col gap-3 rounded-lg px-3 py-3 text-left hover:bg-muted/50 sm:flex-row sm:items-start sm:justify-between"
                             onClick={() => {
                               setSelectedUserId(candidate._id);
                               setSelectedUserLabel(
@@ -748,7 +768,7 @@ export default function SettingsPage() {
 
               {selectedUser && (
                 <div className="rounded-xl border bg-muted/30 p-4">
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex items-start gap-3">
                       <div className="rounded-xl bg-primary/10 p-2 text-primary">
                         <IconShieldLock className="size-4" />
@@ -769,6 +789,7 @@ export default function SettingsPage() {
                       variant="ghost"
                       size="sm"
                       onClick={resetSelectedUser}
+                      className="self-start sm:self-auto"
                     >
                       Clear
                     </Button>
@@ -796,6 +817,7 @@ export default function SettingsPage() {
                 onClick={handleRevoke}
                 loading={activeAction === "revoke"}
                 disabled={!selectedUserId}
+                className="w-full sm:w-auto"
               >
                 <IconUserX className="mr-2 size-4" />
                 Force Logout User
