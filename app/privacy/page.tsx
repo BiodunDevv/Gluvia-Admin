@@ -355,7 +355,8 @@ export default function PrivacyPolicyPage() {
               "Account data is retained for as long as your account is active",
               "Health and nutrition logs are retained to provide long-term trend analysis",
               "You may request deletion of your account and all associated data at any time",
-              "Upon account deletion, personal data is permanently removed within 30 days",
+              "Approved account deletion is completed immediately or scheduled for 15 or 30 days, depending on the review outcome selected by an administrator",
+              "Audit logs and deletion request records may be retained for up to 90 days after completion or cancellation",
               "Anonymized, aggregated data may be retained indefinitely for service improvement",
               "Crash logs and diagnostics are automatically purged after 90 days",
             ]}
@@ -547,9 +548,10 @@ export default function PrivacyPolicyPage() {
                 <p className="text-muted-foreground">
                   Open {APP_NAME} →{" "}
                   <span className="font-medium text-foreground">
-                    Profile → Settings → Delete Account
+                    Profile → Delete Account
                   </span>
-                  . You will be asked to confirm before your data is removed.
+                  . You will be asked to confirm before your account is deleted
+                  inside the app.
                 </p>
               </div>
 
