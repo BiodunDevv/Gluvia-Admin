@@ -512,31 +512,78 @@ export default function PrivacyPolicyPage() {
 
         {/* Delete account note */}
         <Card className="border-destructive/20 bg-destructive/5">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-3">
-              <HugeiconsIcon
-                icon={Delete01Icon}
-                strokeWidth={2}
-                className="h-5 w-5 text-destructive mt-0.5 shrink-0"
-              />
-              <div className="text-sm leading-relaxed">
-                <p className="font-medium text-foreground mb-1">
-                  Account & Data Deletion
-                </p>
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-destructive/10">
+                <HugeiconsIcon
+                  icon={Delete01Icon}
+                  strokeWidth={2}
+                  className="h-5 w-5 text-destructive"
+                />
+              </div>
+              <CardTitle className="text-lg">Account & Data Deletion</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm leading-relaxed">
+            <p className="text-muted-foreground">
+              You can delete your {APP_NAME} account and all associated health
+              data at any time using either method below. Deletion is permanent
+              and irreversible.
+            </p>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              {/* Method 1 — in-app */}
+              <div className="rounded-lg border border-destructive/20 bg-background/60 p-4 space-y-2">
+                <div className="flex items-center gap-2">
+                  <HugeiconsIcon
+                    icon={MobileNavigator01Icon}
+                    strokeWidth={2}
+                    className="h-4 w-4 text-destructive shrink-0"
+                  />
+                  <p className="font-medium text-foreground text-xs uppercase tracking-wider">
+                    Option 1 — In the app
+                  </p>
+                </div>
                 <p className="text-muted-foreground">
-                  You can delete your account and all associated health data at
-                  any time from within the {APP_NAME} app under{" "}
+                  Open {APP_NAME} →{" "}
                   <span className="font-medium text-foreground">
                     Profile → Settings → Delete Account
                   </span>
-                  , or by emailing us at{" "}
-                  <span className="font-medium text-foreground">
-                    {CONTACT_EMAIL}
-                  </span>
-                  . Deletion is permanent and irreversible.
+                  . You will be asked to confirm before your data is removed.
+                </p>
+              </div>
+
+              {/* Method 2 — web form */}
+              <div className="rounded-lg border border-destructive/20 bg-background/60 p-4 space-y-2">
+                <div className="flex items-center gap-2">
+                  <HugeiconsIcon
+                    icon={Delete01Icon}
+                    strokeWidth={2}
+                    className="h-4 w-4 text-destructive shrink-0"
+                  />
+                  <p className="font-medium text-foreground text-xs uppercase tracking-wider">
+                    Option 2 — Web form
+                  </p>
+                </div>
+                <p className="text-muted-foreground">
+                  Submit a deletion request online at{" "}
+                  <Link
+                    href="/delete-account"
+                    className="font-medium text-foreground underline underline-offset-4 hover:text-destructive"
+                  >
+                    gluvia.vercel.app/delete-account
+                  </Link>
+                  . You will receive a verification code by email and can track
+                  or cancel your request at any time.
                 </p>
               </div>
             </div>
+
+            <p className="text-muted-foreground text-xs">
+              Need help? Email us at{" "}
+              <span className="font-medium text-foreground">{CONTACT_EMAIL}</span>.
+              We will respond within 5 business days.
+            </p>
           </CardContent>
         </Card>
 

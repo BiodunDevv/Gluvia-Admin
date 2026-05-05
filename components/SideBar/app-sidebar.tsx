@@ -11,6 +11,7 @@ import {
   IconClipboardList,
   IconUsers,
   IconUser,
+  IconUserX,
 } from "@tabler/icons-react";
 import { useAuthStore } from "@/stores/useAuthStore";
 
@@ -59,6 +60,11 @@ const navigationData = {
       title: "Audit Logs",
       url: "/dashboard/audit",
       icon: IconClipboardList,
+    },
+    {
+      title: "Deletion Requests",
+      url: "/dashboard/deletion-requests",
+      icon: IconUserX,
     },
   ],
   navSecondary: [

@@ -80,6 +80,39 @@ interface AppSettings {
   googleFormLink: string;
 }
 
+export type AccountDeletionStatus =
+  | "verification_sent"
+  | "pending_admin_review"
+  | "approved_scheduled"
+  | "completed"
+  | "cancelled"
+  | "expired";
+
+export interface AccountDeletionRequest {
+  _id: string;
+  email: string;
+  userId?: User | string | null;
+  status: AccountDeletionStatus;
+  requestedAt: string;
+  verifiedAt?: string;
+  approvedAt?: string;
+  scheduleOption?: "immediate" | "15_days" | "30_days";
+  scheduledDeletionAt?: string;
+  completedAt?: string;
+  cancelledAt?: string;
+  cancellationReason?: string;
+  adminNotes?: string;
+  dataSummary?: {
+    deleted: string[];
+    retained: string[];
+  };
+  events?: Array<{
+    type: string;
+    message?: string;
+    at: string;
+  }>;
+}
+
 export interface SeedRequest {
   targets: Array<"foods" | "rules" | "config" | "users">;
   destructive?: boolean;
@@ -144,6 +177,8 @@ interface AdminState {
   userSearchResults: User[];
   lastSeedResult: SeedResult | null;
   seedPreview: SeedPreview | null;
+  accountDeletionRequests: AccountDeletionRequest[];
+  selectedAccountDeletionRequest: AccountDeletionRequest | null;
 
   // Admin Actions
   runInitialSeed: () => Promise<boolean>;
@@ -180,6 +215,19 @@ interface AdminState {
     googleFormLink: string
   ) => Promise<boolean>;
   broadcastNotification: (title: string, body: string) => Promise<boolean>;
+  listAccountDeletionRequests: (
+    status?: AccountDeletionStatus | "all"
+  ) => Promise<boolean>;
+  getAccountDeletionRequest: (requestId: string) => Promise<boolean>;
+  approveAccountDeletionRequest: (
+    requestId: string,
+    schedule: "immediate" | "15_days" | "30_days",
+    adminNotes?: string
+  ) => Promise<boolean>;
+  cancelAccountDeletionRequest: (
+    requestId: string,
+    reason?: string
+  ) => Promise<boolean>;
 }
 
 export const useAdminStore = create<AdminState>((set) => ({
@@ -196,6 +244,8 @@ export const useAdminStore = create<AdminState>((set) => ({
   userSearchResults: [],
   lastSeedResult: null,
   seedPreview: null,
+  accountDeletionRequests: [],
+  selectedAccountDeletionRequest: null,
 
   runInitialSeed: async () => {
     set({ isLoading: true });
@@ -668,6 +718,90 @@ export const useAdminStore = create<AdminState>((set) => ({
       return true;
     } catch (error: any) {
       toast.error(getErrorMessage(error, "Failed to send notification"));
+      set({ isLoading: false });
+      return false;
+    }
+  },
+
+  listAccountDeletionRequests: async (status = "all") => {
+    set({ isLoading: true });
+    try {
+      const response = await api.get("/admin/account-deletion-requests", {
+        params: { status },
+      });
+      set({
+        accountDeletionRequests:
+          getResponseData<AccountDeletionRequest[]>(response) || [],
+        isLoading: false,
+      });
+      return true;
+    } catch (error: any) {
+      toast.error(
+        getErrorMessage(error, "Failed to load account deletion requests")
+      );
+      set({ isLoading: false });
+      return false;
+    }
+  },
+
+  getAccountDeletionRequest: async (requestId: string) => {
+    set({ isLoading: true });
+    try {
+      const response = await api.get(
+        `/admin/account-deletion-requests/${requestId}`
+      );
+      set({
+        selectedAccountDeletionRequest:
+          getResponseData<AccountDeletionRequest | null>(response),
+        isLoading: false,
+      });
+      return true;
+    } catch (error: any) {
+      toast.error(
+        getErrorMessage(error, "Failed to load account deletion request")
+      );
+      set({ isLoading: false });
+      return false;
+    }
+  },
+
+  approveAccountDeletionRequest: async (
+    requestId: string,
+    schedule: "immediate" | "15_days" | "30_days",
+    adminNotes?: string
+  ) => {
+    set({ isLoading: true });
+    try {
+      const response = await api.post(
+        `/admin/account-deletion-requests/${requestId}/approve`,
+        { schedule, adminNotes }
+      );
+      toast.success(getResponseMessage(response, "Deletion request approved"));
+      set({ isLoading: false });
+      return true;
+    } catch (error: any) {
+      toast.error(
+        getErrorMessage(error, "Failed to approve deletion request")
+      );
+      set({ isLoading: false });
+      return false;
+    }
+  },
+
+  cancelAccountDeletionRequest: async (requestId: string, reason?: string) => {
+    set({ isLoading: true });
+    try {
+      const response = await api.post(
+        `/admin/account-deletion-requests/${requestId}/cancel`,
+        { reason }
+      );
+      toast.success(getResponseMessage(response, "Deletion request cancelled"));
+      set({ isLoading: false });
+      return true;
+    } catch (error: any) {
+      toast.error(
+        getErrorMessage(error, "Failed to cancel deletion request")
+      );
       set({ isLoading: false });
       return false;
     }
