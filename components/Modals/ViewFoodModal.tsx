@@ -138,7 +138,26 @@ export function ViewFoodModal({
                   <p className="text-xs text-muted-foreground">
                     Glycemic Index
                   </p>
-                  <p className="font-semibold">{food.nutrients.gi}</p>
+                  <p className="font-semibold">{food.nutrients.gi ?? "N/A"}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 rounded-lg bg-purple-50 dark:bg-purple-950/30 p-3">
+                <div className="flex h-5 w-5 items-center justify-center rounded text-xs font-bold text-purple-500">
+                  GL
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">
+                    Glycemic Load
+                  </p>
+                  <p className="font-semibold">
+                    {food.nutrients.gi !== null
+                      ? (() => {
+                          const gl = Math.round((food.nutrients.carbs_g * food.nutrients.gi) / 100);
+                          const label = gl <= 10 ? "Low" : gl <= 20 ? "Medium" : "High";
+                          return `${gl} (${label})`;
+                        })()
+                      : "N/A"}
+                  </p>
                 </div>
               </div>
             </div>

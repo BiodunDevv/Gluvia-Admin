@@ -259,7 +259,26 @@ function FoodDetailViewer({
                   <p className="text-xs text-muted-foreground">
                     Glycemic Index
                   </p>
-                  <p className="font-semibold">{food.nutrients.gi}</p>
+                  <p className="font-semibold">{food.nutrients.gi ?? "N/A"}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 rounded-lg bg-purple-50 p-3">
+                <div className="flex h-5 w-5 items-center justify-center rounded text-xs font-bold text-purple-500">
+                  GL
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">
+                    Glycemic Load
+                  </p>
+                  <p className="font-semibold">
+                    {food.nutrients.gi !== null
+                      ? (() => {
+                          const gl = Math.round((food.nutrients.carbs_g * food.nutrients.gi) / 100);
+                          const label = gl <= 10 ? "Low" : gl <= 20 ? "Medium" : "High";
+                          return `${gl} (${label})`;
+                        })()
+                      : "N/A"}
+                  </p>
                 </div>
               </div>
             </div>
@@ -453,6 +472,26 @@ function createColumns(
       },
     },
     {
+      id: "nutrients.gl",
+      header: "GL",
+      cell: ({ row }) => {
+        const { carbs_g, gi } = row.original.nutrients;
+        const gl = gi !== null ? Math.round((carbs_g * gi) / 100) : null;
+        const glLabel = gl === null ? "N/A" : gl <= 10 ? "Low" : gl <= 20 ? "Medium" : "High";
+        const getGLColor = () => {
+          if (gl === null) return "bg-gray-100 text-gray-700";
+          if (gl <= 10) return "bg-green-100 text-green-700";
+          if (gl <= 20) return "bg-amber-100 text-amber-700";
+          return "bg-red-100 text-red-700";
+        };
+        return (
+          <Badge variant="secondary" className={getGLColor()}>
+            {gl !== null ? `${gl} (${glLabel})` : "N/A"}
+          </Badge>
+        );
+      },
+    },
+    {
       accessorKey: "nutrients.calories",
       header: () => <div className="text-right">Calories</div>,
       cell: ({ row }) => (
@@ -628,6 +667,7 @@ interface FoodsDataTableProps {
   isLoading?: boolean;
   onEdit: (id: string) => void;
   onDelete: (food: Food) => void;
+  onEditSuccess?: (closeDrawer: () => void) => void;
   pagination?: {
     page: number;
     limit: number;
@@ -648,6 +688,7 @@ export function FoodsDataTable({
   isLoading,
   onEdit,
   onDelete,
+  onEditSuccess,
   pagination: externalPagination,
   onPageChange,
   onSearch,
@@ -669,6 +710,14 @@ export function FoodsDataTable({
     pageSize: 20,
   });
   const [viewingFoodId, setViewingFoodId] = React.useState<string | null>(null);
+
+  // Expose closeDrawer to parent via onEditSuccess registration
+  React.useEffect(() => {
+    if (onEditSuccess) {
+      onEditSuccess(() => setViewingFoodId(null));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const sortableId = React.useId();
   const sensors = useSensors(

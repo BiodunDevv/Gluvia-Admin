@@ -124,16 +124,16 @@ export function SectionCards({ overview }: SectionCardsProps) {
             {totalMealLogs.toLocaleString()}
           </CardTitle>
           <CardAction>
-            <Badge variant="outline">
-              <IconTrendingUp />
-              Active
+            <Badge variant="outline" className={mealLogsLast24h > 0 ? "text-green-600" : "text-muted-foreground"}>
+              {mealLogsLast24h > 0 ? <IconTrendingUp /> : <IconTrendingDown />}
+              {mealLogsLast24h > 0 ? "Active" : "Quiet"}
             </Badge>
           </CardAction>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
             {mealLogsLast24h.toLocaleString()} in last 24h{" "}
-            <IconTrendingUp className="size-4" />
+            {mealLogsLast24h > 0 ? <IconTrendingUp className="size-4 text-green-600" /> : <IconTrendingDown className="size-4 text-muted-foreground" />}
           </div>
           <div className="text-muted-foreground">
             {mealLogsLast7Days.toLocaleString()} in last 7 days
@@ -151,16 +151,16 @@ export function SectionCards({ overview }: SectionCardsProps) {
             {totalGlucoseLogs.toLocaleString()}
           </CardTitle>
           <CardAction>
-            <Badge variant="outline">
-              <IconTrendingUp />
-              Tracking
+            <Badge variant="outline" className={glucoseLogsLast24h > 0 ? "text-green-600" : "text-muted-foreground"}>
+              {glucoseLogsLast24h > 0 ? <IconTrendingUp /> : <IconTrendingDown />}
+              {glucoseLogsLast24h > 0 ? "Tracking" : "Quiet"}
             </Badge>
           </CardAction>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
             {glucoseLogsLast24h.toLocaleString()} in last 24h{" "}
-            <IconTrendingUp className="size-4" />
+            {glucoseLogsLast24h > 0 ? <IconTrendingUp className="size-4 text-green-600" /> : <IconTrendingDown className="size-4 text-muted-foreground" />}
           </div>
           <div className="text-muted-foreground">
             {glucoseLogsLast7Days.toLocaleString()} in last 7 days

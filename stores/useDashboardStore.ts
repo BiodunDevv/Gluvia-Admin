@@ -99,8 +99,9 @@ export interface RecentUser {
   name: string;
   email: string;
   createdAt: string;
-  diabetesType?: string;
+  diabetesType?: string | null;
   isActive: boolean;
+  lastLoginAt?: string | null;
 }
 
 export interface ActivityHeatmap {

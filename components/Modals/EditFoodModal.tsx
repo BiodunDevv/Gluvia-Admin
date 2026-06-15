@@ -538,6 +538,18 @@ export function EditFoodModal({
                       })
                     }
                   />
+                  {(() => {
+                    const gi = Number(formData.nutrients.gi);
+                    const carbs = Number(formData.nutrients.carbs_g);
+                    if (!formData.nutrients.gi || !formData.nutrients.carbs_g) return null;
+                    const gl = Math.round((carbs * gi) / 100);
+                    const color = gl <= 10 ? "text-green-600" : gl <= 20 ? "text-amber-600" : "text-red-600";
+                    return (
+                      <p className={`mt-1 text-xs font-medium ${color}`}>
+                        GL ≈ {gl} ({gl <= 10 ? "Low" : gl <= 20 ? "Medium" : "High"})
+                      </p>
+                    );
+                  })()}
                 </Field>
               </div>
             </div>

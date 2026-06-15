@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFoodStore, type Food } from "@/stores/useFoodStore";
 import { Button } from "@/components/ui/button";
 import { IconPlus, IconUpload } from "@tabler/icons-react";
@@ -25,6 +25,13 @@ const FOOD_CATEGORIES = [
 
 const AFFORDABILITY_OPTIONS = ["low", "medium", "high"];
 
+// Returns null only when the field is empty — preserves 0 as a valid value
+const parseNullableNumber = (value: string): number | null => {
+  if (value === "" || value === null || value === undefined) return null;
+  const n = Number(value);
+  return isNaN(n) ? null : n;
+};
+
 export default function FoodsPage() {
   const {
     foods,
@@ -42,6 +49,7 @@ export default function FoodsPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isBatchUploadOpen, setIsBatchUploadOpen] = useState(false);
   const [editingFood, setEditingFood] = useState<Food | null>(null);
+  const closeDrawerRef = useRef<(() => void) | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -124,7 +132,7 @@ export default function FoodsPage() {
         protein_g: Number(formData.nutrients.protein_g) || 0,
         fat_g: Number(formData.nutrients.fat_g) || 0,
         fibre_g: Number(formData.nutrients.fibre_g) || 0,
-        gi: Number(formData.nutrients.gi) || null,
+        gi: parseNullableNumber(formData.nutrients.gi),
       },
       tags: formData.tags
         .split(",")
@@ -155,7 +163,7 @@ export default function FoodsPage() {
           protein_g: String(food.nutrients.protein_g),
           fat_g: String(food.nutrients.fat_g),
           fibre_g: String(food.nutrients.fibre_g),
-          gi: String(food.nutrients.gi ?? 0),
+          gi: food.nutrients.gi !== null ? String(food.nutrients.gi) : "",
         },
       });
       setIsEditDialogOpen(true);
@@ -184,7 +192,7 @@ export default function FoodsPage() {
         protein_g: Number(formData.nutrients.protein_g) || 0,
         fat_g: Number(formData.nutrients.fat_g) || 0,
         fibre_g: Number(formData.nutrients.fibre_g) || 0,
-        gi: Number(formData.nutrients.gi) || null,
+        gi: parseNullableNumber(formData.nutrients.gi),
       },
       tags: formData.tags
         .split(",")
@@ -195,6 +203,7 @@ export default function FoodsPage() {
       setIsEditDialogOpen(false);
       setEditingFood(null);
       resetForm();
+      closeDrawerRef.current?.();
     }
   };
 
@@ -248,6 +257,9 @@ export default function FoodsPage() {
         onCategoryChange={setCategoryFilter}
         onEdit={handleEditClick}
         onDelete={handleDeleteFood}
+        onEditSuccess={(closeDrawer) => {
+          closeDrawerRef.current = closeDrawer;
+        }}
       />
 
       <CreateFoodModal

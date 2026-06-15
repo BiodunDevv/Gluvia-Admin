@@ -43,7 +43,6 @@ export default function Page() {
   } = useDashboardStore();
 
   useEffect(() => {
-    // Fetch initial dashboard data
     getDashboardOverview();
     getUserGrowthChart(30);
     getMealLogsChart(30);
@@ -52,16 +51,8 @@ export default function Page() {
     getSystemHealth();
     getUserEngagement();
     getRecentUsers(10);
-  }, [
-    getDashboardOverview,
-    getUserGrowthChart,
-    getMealLogsChart,
-    getGlucoseLogsChart,
-    getTopFoods,
-    getSystemHealth,
-    getUserEngagement,
-    getRecentUsers,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleRefresh = async () => {
     toast.info("Refreshing dashboard data...");
